@@ -38,20 +38,17 @@ export function keyNeedsRenewal(saved: { api_key?: string; expires_on?: string }
   return new Date(saved.expires_on).getTime() - now < 14 * 86400_000;
 }
 
-async function gfwApiKey(token: string): Promise<string> {
+async function loadSavedKey() {
   const { data: row } = await db().from('server_settings').select('value').eq('key', 'gfw_api_key').maybeSingle();
-  const saved = (row?.value ?? null) as { api_key?: string; expires_on?: string } | null;
-  if (!keyNeedsRenewal(saved)) return saved!.api_key!;
+  return (row?.value ?? null) as { api_key?: string; expires_on?: string } | null;
+}
 
+async function createKey(token: string): Promise<string> {
+  // No "domains" field: a domain list restricts which websites may use the key; this key is server-only.
   const res = await fetchRetry(`${API}/auth/apikey`, {
     method: 'POST',
     headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-    body: JSON.stringify({
-      alias: `ecopulse-${new Date().toISOString().slice(0, 10)}`,
-      email: env('GFW_EMAIL'),
-      organization: 'EcoPulse Indonesia',
-      domains: [],
-    }),
+    body: JSON.stringify({ alias: `ecopulse-${new Date().toISOString().slice(0, 16)}`, email: env('GFW_EMAIL'), organization: 'EcoPulse Indonesia' }),
   }, { retries: 1 });
   const json = (await res.json()) as { data?: { api_key?: string; expires_on?: string } };
   const apiKey = json.data?.api_key;
@@ -62,6 +59,41 @@ async function gfwApiKey(token: string): Promise<string> {
   if (error) throw new Error(`Could not save GFW API key: ${error.message}. Did you run migration 006?`);
   console.log(`  created a new GFW API key${json.data?.expires_on ? ` (valid until ${json.data.expires_on.slice(0, 10)})` : ''}`);
   return apiKey;
+}
+
+// GFW's own validity check (no login needed). Returns true/false, or null if the check itself failed.
+async function keyIsValid(apiKey: string): Promise<boolean | null> {
+  try {
+    const res = await fetch(`${API}/auth/apikey/${apiKey}/validate`, { signal: AbortSignal.timeout(20_000) });
+    const json = (await res.json()) as { data?: { is_valid?: boolean } };
+    return typeof json.data?.is_valid === 'boolean' ? json.data.is_valid : null;
+  } catch { return null; }
+}
+
+const isKeyRejection = (err: unknown) => /403|missing valid API key/i.test(err instanceof Error ? err.message : String(err));
+
+// Returns a key that GFW actually accepts for a test query, creating/replacing it if needed.
+async function workingApiKey(token: string, probe: (key: string) => Promise<unknown>): Promise<string> {
+  const saved = await loadSavedKey();
+  let key = keyNeedsRenewal(saved) ? await createKey(token) : saved!.api_key!;
+  let replaced = key !== saved?.api_key;
+
+  for (let attempt = 1; attempt <= 6; attempt++) {
+    const valid = await keyIsValid(key);
+    console.log(`  GFW key check ${attempt}: ${valid === null ? 'unknown' : valid ? 'valid' : 'not valid yet'}`);
+    try {
+      await probe(key);
+      return key;
+    } catch (err) {
+      if (!isKeyRejection(err)) throw err;
+      if (!replaced && attempt >= 2) {           // an old saved key that keeps failing: replace it once
+        console.log('  saved GFW key rejected: creating a fresh one');
+        key = await createKey(token); replaced = true;
+      }
+      await sleep(30_000);                        // new keys can take a moment to activate
+    }
+  }
+  throw new Error('GFW keeps rejecting the API key after ~3 minutes. Check the GFW account is confirmed, then run again.');
 }
 
 async function gfwQuery<T>(apiKey: string, sql: string, geometry: unknown): Promise<T[]> {
@@ -156,29 +188,47 @@ async function main() {
   await runJob('deforestation', async () => {
     const warnings: string[] = [];
     const token = await gfwToken();
-    const apiKey = await gfwApiKey(token);
     const { data: outlines, error } = await db().rpc('province_outlines', { tolerance: 0.02 });
     if (error) throw new Error(`province_outlines: ${error.message}`);
+    const first = (outlines as { geojson: unknown }[])[0];
+    // Probe with a tiny 1-day count on the first province so a bad key is caught before the main loop.
+    const apiKey = await workingApiKey(token, (key) => gfwQuery(key,
+      `SELECT COUNT(*) AS n FROM results WHERE gfw_integrated_alerts__date >= '${daysAgo(1)}'`, first.geojson));
 
     const end = daysAgo(0), start7 = daysAgo(7), startC = daysAgo(CLUSTER_DAYS);
     let clusters = 0, provincesOk = 0;
 
     for (const p of outlines as { id: number; slug: string; name_en: string; geojson: unknown }[]) {
       try {
-        // (a) 7-day total
-        const [tot] = await gfwQuery<{ alert_count: number | null; area_ha: number | null }>(apiKey,
-          `SELECT COUNT(*) AS alert_count, SUM(area__ha) AS area_ha FROM results ` +
-          `WHERE gfw_integrated_alerts__date >= '${start7}' AND gfw_integrated_alerts__confidence IN ('high','highest')`, p.geojson);
+        // (a) 7-day total. GFW's SQL has no IN (...), so ask once per confidence level and add them up.
+        let alerts = 0, area = 0;
+        for (const level of ['high', 'highest']) {
+          const where = `WHERE gfw_integrated_alerts__date >= '${start7}' AND gfw_integrated_alerts__confidence = '${level}'`;
+          let row: { alert_count?: number | null; area_ha?: number | null } | undefined;
+          try {
+            [row] = await gfwQuery(apiKey, `SELECT COUNT(*) AS alert_count, SUM(area__ha) AS area_ha FROM results ${where}`, p.geojson);
+          } catch (err) {
+            if (!/422|unsupported/i.test(String(err))) throw err;
+            [row] = await gfwQuery(apiKey, `SELECT COUNT(*) AS alert_count FROM results ${where}`, p.geojson);   // area not supported: count only
+          }
+          alerts += Number(row?.alert_count ?? 0);
+          area += Number(row?.area_ha ?? 0);
+          await sleep(500);
+        }
         await upsertChunked('deforestation_province_7d', [{
-          province_id: p.id, alerts_7d: Number(tot?.alert_count ?? 0), area_ha_7d: Math.round(Number(tot?.area_ha ?? 0) * 100) / 100,
+          province_id: p.id, alerts_7d: alerts, area_ha_7d: area ? Math.round(area * 100) / 100 : null,
           window_start: start7, window_end: end, computed_at: new Date().toISOString(),
         }], 'province_id');
-        await sleep(800);
 
         // (b) points → ~1 km clusters
-        const pts = await gfwQuery<AlertPoint>(apiKey,
-          `SELECT latitude, longitude, gfw_integrated_alerts__date, area__ha FROM results ` +
-          `WHERE gfw_integrated_alerts__date >= '${startC}' AND gfw_integrated_alerts__confidence = 'highest'`, p.geojson);
+        const whereC = `WHERE gfw_integrated_alerts__date >= '${startC}' AND gfw_integrated_alerts__confidence = 'highest'`;
+        let pts: AlertPoint[];
+        try {
+          pts = await gfwQuery<AlertPoint>(apiKey, `SELECT latitude, longitude, gfw_integrated_alerts__date, area__ha FROM results ${whereC}`, p.geojson);
+        } catch (err) {
+          if (!/422|unsupported/i.test(String(err))) throw err;
+          pts = await gfwQuery<AlertPoint>(apiKey, `SELECT latitude, longitude, gfw_integrated_alerts__date FROM results ${whereC}`, p.geojson);
+        }
         const rows = clusterPoints(pts).map((c) => ({ ...c, province_id: p.id, updated_at: new Date().toISOString() }));
         clusters += await upsertChunked('deforestation_clusters', rows, 'grid_lat,grid_lon');
         provincesOk++;
