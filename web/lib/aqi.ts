@@ -61,3 +61,40 @@ export function cleanestWindow(points: ForecastPoint[], timeZone: string): { sta
   }
   return best;
 }
+
+// ---- PM2.5 <-> US AQI (EPA breakpoints, 2024 revision) ----
+const BP: [number, number, number, number][] = [
+  [0.0, 9.0, 0, 50], [9.1, 35.4, 51, 100], [35.5, 55.4, 101, 150],
+  [55.5, 125.4, 151, 200], [125.5, 225.4, 201, 300], [225.5, 325.4, 301, 500],
+];
+
+export function pm25ToAqi(c: number): number {
+  if (!Number.isFinite(c) || c < 0) return 0;
+  const t = Math.floor(c * 10) / 10;
+  if (t > 325.4) return 500;
+  for (const [cLo, cHi, iLo, iHi] of BP) if (t <= cHi) return Math.round(((iHi - iLo) / (cHi - cLo)) * (Math.max(t, cLo) - cLo) + iLo);
+  return 500;
+}
+
+export function aqiToPm25(aqi: number): number {
+  for (const [cLo, cHi, iLo, iHi] of BP) if (aqi <= iHi) return cLo + ((Math.max(aqi, iLo) - iLo) * (cHi - cLo)) / (iHi - iLo);
+  return 325.4;
+}
+
+// The forecast comes from a regional model (CAMS via Open-Meteo), which often over- or
+// under-estimates street-level PM2.5. We keep its SHAPE (when air gets better or worse) but
+// scale it so the current hour matches what the ground sensors measure right now.
+export type RawForecast = { valid_at: string; pm25_forecast: number | null; aqi_forecast: number };
+
+export function calibrateForecast(points: RawForecast[], live: { pm25: number | null; aqi: number } | null): ForecastPoint[] {
+  const sorted = [...points].sort((a, b) => a.valid_at.localeCompare(b.valid_at));
+  const first = sorted.find((p) => p.pm25_forecast != null && p.pm25_forecast > 0);
+  if (!live || !first) return sorted.map((p) => ({ valid_at: p.valid_at, aqi_forecast: p.aqi_forecast }));
+  // Anchor to the AQI shown on the card (the median across all stations), so the first bar always matches it.
+  const livePm = aqiToPm25(live.aqi);
+  const ratio = Math.min(3, Math.max(0.33, livePm / first.pm25_forecast!));
+  return sorted.map((p) => ({
+    valid_at: p.valid_at,
+    aqi_forecast: p.pm25_forecast == null ? p.aqi_forecast : pm25ToAqi(p.pm25_forecast * ratio),
+  }));
+}

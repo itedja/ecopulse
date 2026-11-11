@@ -15,7 +15,7 @@ export const T = {
     },
     cleanest: (from: string, to: string) => `Cleanest window: ${from}–${to}.`,
     exercise: 'Exercise', mask: 'Mask outside', smoke: 'Smoke drift',
-    smokeNone: 'None inbound', nearest: (km: number) => `nearest ${km} km`, smokeYes: (n: number) => `${n} fires upwind`,
+    smokeNone: 'None inbound', nearest: (km: number) => `nearest ${km} km`, smokeYes: (n: number) => `${n} fire${n === 1 ? '' : 's'} upwind`,
     smokeCalm: 'Wind too light',
     forecast: 'Next 24 hours', now: 'Now',
     updated: (m: number) => (m < 1 ? 'Updated just now' : m < 60 ? `Updated ${m} min ago` : `Updated ${Math.round(m / 60)} h ago`),

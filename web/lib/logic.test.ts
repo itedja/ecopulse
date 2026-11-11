@@ -49,3 +49,24 @@ test('Time zones per city', () => {
   assert.equal(T.en.updated(0), 'Updated just now');
   assert.equal(T.id.updated(90), 'Diperbarui 2 jam lalu');
 });
+
+import { calibrateForecast, pm25ToAqi, aqiToPm25 } from './aqi.ts';
+
+test('PM2.5 <-> AQI round-trips', () => {
+  assert.equal(pm25ToAqi(84.7), 171);
+  for (const a of [25, 75, 120, 154, 250, 400]) assert.ok(Math.abs(pm25ToAqi(aqiToPm25(a)) - a) <= 1, String(a));
+});
+
+test('Forecast calibration: matches the live reading now, keeps the shape', () => {
+  // Model says ~150 µg/m³ (purple) now and halves by afternoon; sensors say 84.7 µg/m³ (AQI 154 band).
+  const raw = [150, 140, 120, 75].map((pm, i) => ({ valid_at: `2026-11-12T0${i}:00:00Z`, pm25_forecast: pm, aqi_forecast: pm25ToAqi(pm) }));
+  assert.equal(raw[0].aqi_forecast > 200, true);
+  const cal = calibrateForecast(raw, { pm25: 84.7, aqi: 154 });
+  assert.ok(Math.abs(cal[0].aqi_forecast - 154) <= 1);            // first hour == the AQI on the card
+  assert.ok(cal[3].aqi_forecast < cal[0].aqi_forecast);           // still improves later
+  assert.ok(cal.every((p) => p.aqi_forecast <= 200));             // no more purple
+  // No live PM2.5 (AQICN-only city): derive it from the AQI.
+  assert.ok(Math.abs(calibrateForecast(raw, { pm25: null, aqi: 154 })[0].aqi_forecast - 154) <= 1);
+  // No live reading: unchanged.
+  assert.equal(calibrateForecast(raw, null)[0].aqi_forecast, raw[0].aqi_forecast);
+});

@@ -3,7 +3,7 @@ import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase, supabaseConfigured, type City, type CityAq, type Hotspot, type Forecast, type Wind, type Alert, type Quake, type NewsItem } from '@/lib/supabase';
 import { T, type Lang, cityTimeZone, hhmm } from '@/lib/i18n';
-import { category, advice, cleanestWindow, type Category } from '@/lib/aqi';
+import { category, advice, cleanestWindow, calibrateForecast, type Category } from '@/lib/aqi';
 import { upwindFires, distanceKm, compass } from '@/lib/smoke';
 import type { LayerKey } from '@/components/MapView';
 
@@ -81,7 +81,10 @@ export default function Home() {
   const cat = category(reading?.aqi_us);
   const tz = city ? cityTimeZone(city.slug) : { tz: 'Asia/Jakarta', label: 'WIB' };
 
-  const forecast = useMemo(() => data.forecast.filter((f) => f.slug === city?.slug), [data.forecast, city?.slug]);
+  const forecast = useMemo(() => calibrateForecast(
+    data.forecast.filter((f) => f.slug === city?.slug),
+    reading ? { pm25: reading.pm25_ugm3, aqi: reading.aqi_us } : null,
+  ), [data.forecast, city?.slug, reading]);
   const best = useMemo(() => cleanestWindow(forecast, tz.tz), [forecast, tz.tz]);
   const cityWind = data.wind.find((w) => w.city_id === city?.id) ?? null;
   const smoke = useMemo(() => city ? upwindFires(city, cityWind?.wind_direction_deg ?? null, cityWind?.wind_speed_kmh ?? null, data.fires) : null,
