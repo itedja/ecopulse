@@ -1,0 +1,10 @@
+{
+  "name": "EcoPulse Indonesia",
+  "short_name": "EcoPulse",
+  "description": "Live air quality, fires and environmental news across Indonesia.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F4F5F7",
+  "theme_color": "#0E1116",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

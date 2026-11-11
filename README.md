@@ -26,6 +26,12 @@ visible without opening GitHub.
    `ANTHROPIC_API_KEY` (news, later).
 3. **First run:** GitHub → Actions → pick a workflow → **Run workflow**.
 
+## Website (`/web`)
+
+Next.js app deployed on Vercel. In Vercel: **Root Directory = `web`**, and add the environment variables
+`NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` (the Supabase *publishable* key, never the secret key).
+The browser only reads public data; row-level security blocks every write.
+
 ## Local development
 
 ```bash
