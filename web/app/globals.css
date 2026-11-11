@@ -76,6 +76,7 @@ button { font: inherit; color: inherit; }
 .dot-air { background: conic-gradient(#2E9E5B 0 33%, #E8B10A 0 66%, #D93A2B 0); }
 .dot-fire { background: var(--fire); border-radius: 2px; transform: rotate(45deg) scale(0.8); }
 .dot-wind { background: #475569; height: 3px; border-radius: 2px; }
+.dot-forest { background: var(--forest); border-radius: 2px; }
 .dot-alerts { background: var(--water); }
 
 /* Cards */
@@ -164,3 +165,24 @@ button { font: inherit; color: inherit; }
 .rank-v .up { font-size: 11px; color: var(--fire); font-family: var(--mono); }
 .rank-v .down { font-size: 11px; color: #166534; font-family: var(--mono); }
 .rank-foot { margin: 0; line-height: 1.5; }
+
+/* Forest-loss alert card */
+.forest { display: flex; flex-direction: column; gap: 14px; border-color: #D9CBBE; }
+.forest-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.forest-kicker { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--forest); letter-spacing: 0.02em; }
+.forest-sq { width: 10px; height: 10px; border-radius: 2px; background: var(--forest); }
+.forest-title { margin: 4px 0 4px; font-size: 20px; font-weight: 700; line-height: 1.25; }
+.icon-btn { width: 44px; height: 44px; flex-shrink: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.stat { font-size: 22px !important; font-weight: 700 !important; }
+.stat.warn { color: var(--fire); }
+.sub { display: flex; flex-direction: column; gap: 6px; }
+.sub .h2 { margin: 0; }
+.body { margin: 0; font-size: 14px; line-height: 1.55; }
+.help { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.help-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; min-height: 52px; border: 1px solid var(--line); border-radius: 10px; text-decoration: none; }
+.help-row:hover { border-color: var(--slate); }
+.help-body { display: flex; flex-direction: column; gap: 3px; flex: 1 1 auto; min-width: 0; }
+.help-title { font-size: 14px; font-weight: 600; }
+.btn-ink.full { width: 100%; height: 48px; }
+.safety { margin: 0; text-align: center; line-height: 1.5; }
+.limited { font-size: 11px; font-weight: 600; color: var(--slate); border: 1px solid var(--line); padding: 1px 6px; border-radius: 5px; }

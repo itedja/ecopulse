@@ -4,9 +4,9 @@ import { useEffect, useRef } from 'react';
 import maplibregl, { type GeoJSONSource, type Map as MLMap } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { category } from '@/lib/aqi';
-import type { CityAq, Hotspot, Wind, Alert, Quake, City } from '@/lib/supabase';
+import type { CityAq, Hotspot, Wind, Alert, Quake, City, ForestAlert } from '@/lib/supabase';
 
-export type LayerKey = 'air' | 'fire' | 'wind' | 'alerts';
+export type LayerKey = 'air' | 'fire' | 'forest' | 'wind' | 'alerts';
 
 type Props = {
   aq: CityAq[];
@@ -14,6 +14,9 @@ type Props = {
   wind: Wind[];
   alerts: Alert[];
   quakes: Quake[];
+  forests: ForestAlert[];
+  onSelectForest: (id: number) => void;
+  selectedForestId: number | null;
   layers: Record<LayerKey, boolean>;
   selected: City | null;
   onSelectCity: (slug: string) => void;
@@ -24,6 +27,16 @@ const STYLE = 'https://tiles.openfreemap.org/styles/positron';
 const fc = (features: GeoJSON.Feature[]): GeoJSON.FeatureCollection => ({ type: 'FeatureCollection', features });
 const pt = (lon: number, lat: number, properties: Record<string, unknown>): GeoJSON.Feature =>
   ({ type: 'Feature', geometry: { type: 'Point', coordinates: [lon, lat] }, properties });
+
+// Forest-loss square (brown = forest, per the visual rules).
+function squareImage(selected: boolean): ImageData {
+  const s = 28, c = document.createElement('canvas');
+  c.width = c.height = s;
+  const g = c.getContext('2d')!;
+  g.fillStyle = selected ? '#0E1116' : '#FFFFFF'; g.fillRect(2, 2, 24, 24);
+  g.fillStyle = '#8B5E34'; g.fillRect(5, 5, 18, 18);
+  return g.getImageData(0, 0, s, s);
+}
 
 // Arrow icon drawn on a canvas (points "up"; rotated to where the wind blows TO).
 function arrowImage(): ImageData {
@@ -39,16 +52,19 @@ function arrowImage(): ImageData {
 const LAYER_IDS: Record<LayerKey, string[]> = {
   air: ['aq-circle', 'aq-label'],
   fire: ['fire-dot'],
+  forest: ['forest-sq'],
   wind: ['wind-arrow'],
   alerts: ['alert-fill', 'alert-line', 'quake-ring'],
 };
 
-export default function MapView({ aq, fires, wind, alerts, quakes, layers, selected, onSelectCity, lang }: Props) {
+export default function MapView({ aq, fires, wind, alerts, quakes, forests, onSelectForest, selectedForestId, layers, selected, onSelectCity, lang }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<MLMap | null>(null);
   const ready = useRef(false);
   const selectRef = useRef(onSelectCity);
   selectRef.current = onSelectCity;
+  const forestRef = useRef(onSelectForest);
+  forestRef.current = onSelectForest;
   const langRef = useRef(lang);
   langRef.current = lang;
 
@@ -64,7 +80,9 @@ export default function MapView({ aq, fires, wind, alerts, quakes, layers, selec
 
     m.on('load', () => {
       m.addImage('arrow', arrowImage(), { pixelRatio: 2 });
-      for (const id of ['aq', 'fires', 'wind', 'alerts', 'quakes']) m.addSource(id, { type: 'geojson', data: fc([]) });
+      m.addImage('sq', squareImage(false), { pixelRatio: 2 });
+      m.addImage('sq-sel', squareImage(true), { pixelRatio: 2 });
+      for (const id of ['aq', 'fires', 'wind', 'alerts', 'quakes', 'forest']) m.addSource(id, { type: 'geojson', data: fc([]) });
 
       m.addLayer({ id: 'alert-fill', type: 'fill', source: 'alerts', paint: { 'fill-color': '#2563EB', 'fill-opacity': 0.12 } });
       m.addLayer({ id: 'alert-line', type: 'line', source: 'alerts', paint: { 'line-color': '#2563EB', 'line-width': 1, 'line-opacity': 0.6 } });
@@ -83,6 +101,14 @@ export default function MapView({ aq, fires, wind, alerts, quakes, layers, selec
           'circle-radius': ['interpolate', ['linear'], ['zoom'], 3, 2, 8, 5],
           'circle-opacity': ['match', ['get', 'confidence'], 'high', 0.9, 'nominal', 0.6, 0.3],
           'circle-stroke-color': '#FFFFFF', 'circle-stroke-width': 0.5,
+        },
+      });
+      m.addLayer({
+        id: 'forest-sq', type: 'symbol', source: 'forest',
+        layout: {
+          'icon-image': ['case', ['get', 'selected'], 'sq-sel', 'sq'], 'icon-allow-overlap': true,
+          'icon-size': ['interpolate', ['linear'], ['get', 'ha'], 0, 0.6, 5, 0.9, 50, 1.4],
+          'symbol-sort-key': ['get', 'ha'],
         },
       });
       m.addLayer({
@@ -105,6 +131,12 @@ export default function MapView({ aq, fires, wind, alerts, quakes, layers, selec
         paint: { 'text-color': ['get', 'ink'] },
       });
 
+      m.on('click', 'forest-sq', (e) => {
+        const id = e.features?.[0]?.properties?.id;
+        if (id != null) forestRef.current(Number(id));
+      });
+      m.on('mouseenter', 'forest-sq', () => (m.getCanvas().style.cursor = 'pointer'));
+      m.on('mouseleave', 'forest-sq', () => (m.getCanvas().style.cursor = ''));
       m.on('click', 'aq-circle', (e) => {
         const slug = e.features?.[0]?.properties?.slug;
         if (slug) selectRef.current(String(slug));
@@ -147,11 +179,13 @@ export default function MapView({ aq, fires, wind, alerts, quakes, layers, selec
         pt(w.longitude, w.latitude, { to: ((w.wind_direction_deg ?? 0) + 180) % 360, speed: w.wind_speed_kmh ?? 0 }))));
       (m.getSource('alerts') as GeoJSONSource)?.setData(fc(alerts.filter((a) => a.area).map((a) =>
         ({ type: 'Feature', geometry: a.area as GeoJSON.Geometry, properties: { headline: (lang === 'id' ? a.headline_id : a.headline_en) ?? a.headline_en ?? '' } }))));
+      (m.getSource('forest') as GeoJSONSource)?.setData(fc(forests.map((f) =>
+        pt(f.grid_lon, f.grid_lat, { id: f.id, ha: Number(f.area_ha ?? 0), selected: f.id === selectedForestId }))));
       (m.getSource('quakes') as GeoJSONSource)?.setData(fc(quakes.map((q) =>
         pt(q.longitude, q.latitude, { mag: q.magnitude, depth: q.depth_km ?? '?', region: q.region_text ?? '', when: when(q.occurred_at) }))));
     };
     if (ready.current) apply(); else m.once('ecopulse:ready', apply);
-  }, [aq, fires, wind, alerts, quakes, selected, lang]);
+  }, [aq, fires, wind, alerts, quakes, forests, selectedForestId, selected, lang]);
 
   // Layer toggles.
   useEffect(() => {

@@ -12,7 +12,8 @@
     "ingest:maintenance": "tsx ingest/maintenance.ts",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test ingest/**/*.test.ts",
-    "ingest:news": "tsx ingest/news.ts"
+    "ingest:news": "tsx ingest/news.ts",
+    "ingest:deforestation": "tsx ingest/deforestation.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.0",

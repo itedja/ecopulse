@@ -1,12 +1,13 @@
 'use client';
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { supabase, supabaseConfigured, type City, type CityAq, type Hotspot, type Forecast, type Wind, type Alert, type Quake, type NewsItem } from '@/lib/supabase';
+import { supabase, supabaseConfigured, type City, type CityAq, type Hotspot, type Forecast, type Wind, type Alert, type Quake, type NewsItem, type ForestAlert, type HelpAction } from '@/lib/supabase';
 import { T, type Lang, cityTimeZone, hhmm } from '@/lib/i18n';
 import { category, advice, cleanestWindow, calibrateForecast, type Category } from '@/lib/aqi';
 import { upwindFires, distanceKm, compass } from '@/lib/smoke';
 import type { LayerKey } from '@/components/MapView';
 import Rankings, { type RankingRow } from '@/components/Rankings';
+import ForestAlertCard from '@/components/ForestAlertCard';
 import { drawCityCard, shareCanvas } from '@/lib/shareCard';
 
 const MapView = dynamic(() => import('@/components/MapView'), { ssr: false, loading: () => <div className="map map-loading" /> });
@@ -19,14 +20,14 @@ const store = {
 
 type Data = {
   cities: City[]; aq: CityAq[]; fires: Hotspot[]; forecast: Forecast[];
-  wind: Wind[]; alerts: Alert[]; quakes: Quake[]; news: NewsItem[]; rankings: RankingRow[];
+  wind: Wind[]; alerts: Alert[]; quakes: Quake[]; news: NewsItem[]; rankings: RankingRow[]; forests: ForestAlert[]; help: HelpAction[];
 };
-const EMPTY: Data = { cities: [], aq: [], fires: [], forecast: [], wind: [], alerts: [], quakes: [], news: [], rankings: [] };
+const EMPTY: Data = { cities: [], aq: [], fires: [], forecast: [], wind: [], alerts: [], quakes: [], news: [], rankings: [], forests: [], help: [] };
 
 async function loadAll(): Promise<Data> {
   const hour = new Date(); hour.setUTCMinutes(0, 0, 0);
   const now = new Date().toISOString();
-  const [cities, aq, fires, forecast, wind, alerts, quakes, news, rankings] = await Promise.all([
+  const [cities, aq, fires, forecast, wind, alerts, quakes, news, rankings, forests, help] = await Promise.all([
     supabase.from('cities').select('id, slug, name_en, name_id, latitude, longitude, province_id').eq('is_featured', true).order('name_en'),
     supabase.from('city_aq_latest').select('*'),
     supabase.from('hotspots_recent').select('id, latitude, longitude, acquired_at, confidence, frp_mw, province_id').limit(5000),
@@ -37,6 +38,8 @@ async function loadAll(): Promise<Data> {
       .gt('occurred_at', new Date(Date.now() - 7 * 86400_000).toISOString()).order('occurred_at', { ascending: false }).limit(50),
     supabase.from('news_feed').select('*').order('published_at', { ascending: false }).limit(30),
     supabase.from('province_rankings_7d').select('*'),
+    supabase.from('deforestation_alerts_public').select('*').order('area_ha', { ascending: false }).limit(1500),
+    supabase.from('help_actions').select('*').eq('is_active', true).order('priority'),
   ]);
   type WRow = { wind_speed_kmh: number | null; wind_direction_deg: number | null; weather_points: { latitude: number; longitude: number; city_id: number | null } | null };
   return {
@@ -52,6 +55,8 @@ async function loadAll(): Promise<Data> {
     quakes: (quakes.data ?? []) as Quake[],
     news: (news.data ?? []) as NewsItem[],
     rankings: (rankings.data ?? []) as RankingRow[],
+    forests: (forests.data ?? []) as ForestAlert[],
+    help: (help.data ?? []) as HelpAction[],
   };
 }
 
@@ -62,7 +67,8 @@ export default function Home() {
   const [slug, setSlug] = useState('jakarta');
   const [tab, setTab] = useState<'map' | 'rank' | 'news'>('map');
   const [sharing, setSharing] = useState(false);
-  const [layers, setLayers] = useState<Record<LayerKey, boolean>>({ air: true, fire: true, wind: true, alerts: true });
+  const [layers, setLayers] = useState<Record<LayerKey, boolean>>({ air: true, fire: true, forest: true, wind: true, alerts: true });
+  const [forestId, setForestId] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const t = T[lang];
 
@@ -142,6 +148,7 @@ export default function Home() {
       <main className="layout">
         <section className="map-pane">
           <MapView aq={data.aq} fires={data.fires} wind={data.wind} alerts={data.alerts} quakes={data.quakes}
+            forests={data.forests} selectedForestId={forestId} onSelectForest={(id) => { setForestId(id); setTab('map'); }}
             layers={layers} selected={city} onSelectCity={chooseCity} lang={lang} />
           <div className="chips" role="group" aria-label="Map layers">
             {(Object.keys(layers) as LayerKey[]).map((k) => (
@@ -158,6 +165,10 @@ export default function Home() {
             <button aria-pressed={tab === 'rank'} onClick={() => setTab('rank')}>{t.tabs.rank}</button>
             <button aria-pressed={tab === 'news'} onClick={() => setTab('news')}>{t.tabs.news}</button>
           </div>
+          {(() => {
+            const fa = forestId != null ? data.forests.find((f) => f.id === forestId) : undefined;
+            return fa ? <ForestAlertCard alert={fa} help={data.help} lang={lang} site={site} onClose={() => setForestId(null)} /> : null;
+          })()}
           {!supabaseConfigured && <div className="notice">Missing NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY.</div>}
 
           <section className="card verdict panel-map" aria-live="polite">

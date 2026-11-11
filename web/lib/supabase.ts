@@ -19,3 +19,7 @@ export type Wind = { latitude: number; longitude: number; wind_speed_kmh: number
 export type Alert = { id: number; kind: string; severity: string | null; headline_en: string | null; headline_id: string | null; province_ids: number[]; expires_at: string | null; area: unknown };
 export type Quake = { id: number; occurred_at: string; magnitude: number; depth_km: number | null; latitude: number; longitude: number; region_text: string | null };
 export type NewsItem = { id: number; url: string; title: string; published_at: string; summary_en: string | null; summary_id: string | null; topics: string[]; province_ids: number[]; source_name: string; image_url: string | null };
+export type ForestAlert = { id: number; grid_lat: number; grid_lon: number; province_id: number | null; province_en: string | null; province_id_name: string | null;
+  first_detected: string; last_detected: string; alert_count: number; area_ha: number | null; fires_within_10km: number | null; summary_en: string | null; summary_id: string | null };
+export type HelpAction = { id: number; action_type: string; issue_kinds: string[]; province_ids: number[]; org_name: string | null; title_en: string; title_id: string;
+  description_en: string | null; description_id: string | null; url: string | null; whatsapp: string | null; priority: number };

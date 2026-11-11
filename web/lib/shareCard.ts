@@ -51,7 +51,7 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, x: number, y: number,
 export type RankRow = { name: string; value: number; sub?: string };
 
 export function drawRankingCard(ctx: CanvasRenderingContext2D, o: {
-  title: string; subtitle: string; rows: RankRow[]; unit: string; kind: 'fire' | 'air'; source: string; site: string;
+  title: string; subtitle: string; rows: RankRow[]; unit: string; kind: 'fire' | 'air' | 'forest'; source: string; site: string;
 }) {
   base(ctx, o.site);
   ctx.fillStyle = INK; ctx.font = `700 64px ${SANS}`;
@@ -65,7 +65,7 @@ export function drawRankingCard(ctx: CanvasRenderingContext2D, o: {
     ctx.fillStyle = MUTED; ctx.font = `600 34px ${MONO}`; ctx.fillText(String(i + 1), 96, y + 40);
     ctx.fillStyle = INK; ctx.font = `600 38px ${SANS}`; ctx.fillText(fitText(ctx, r.name, 560), 150, y + 40);
     ctx.font = `700 44px ${SANS}`; ctx.textAlign = 'right'; ctx.fillText(String(r.value), W - 96, y + 42); ctx.textAlign = 'left';
-    const color = o.kind === 'fire' ? FIRE : (category(r.value)?.color ?? MUTED);
+    const color = o.kind === 'fire' ? FIRE : o.kind === 'forest' ? '#8B5E34' : (category(r.value)?.color ?? MUTED);
     ctx.fillStyle = LINE; roundRect(ctx, 150, y + 66, W - 246, 14, 7); ctx.fill();
     ctx.fillStyle = color; roundRect(ctx, 150, y + 66, Math.max(14, (W - 246) * (r.value / max)), 14, 7); ctx.fill();
     if (r.sub) { ctx.fillStyle = MUTED; ctx.font = `500 22px ${MONO}`; ctx.fillText(r.sub, 150, y + 112); }
@@ -96,6 +96,31 @@ export function drawCityCard(ctx: CanvasRenderingContext2D, o: {
     y += 62;
   }
   ctx.fillStyle = MUTED; ctx.font = `500 22px ${MONO}`; ctx.fillText(o.source, 96, H - 210);
+}
+
+export function drawForestCard(ctx: CanvasRenderingContext2D, o: {
+  title: string; area: string; alerts: number; fires: number; dates: string; summary: string;
+  labels: { area: string; alerts: string; fires: string }; site: string;
+}) {
+  base(ctx, o.site);
+  ctx.fillStyle = '#8B5E34'; ctx.fillRect(96, 196, 26, 26);
+  ctx.font = `700 26px ${SANS}`; ctx.fillText('FOREST LOSS · SATELLITE ALERTS', 138, 218);
+  ctx.fillStyle = INK; ctx.font = `700 60px ${SANS}`;
+  let y = wrap(ctx, o.title, 96, 310, W - 192, 70, 2);
+  ctx.fillStyle = MUTED; ctx.font = `500 28px ${MONO}`; ctx.fillText(o.dates, 96, y + 10);
+  // three stats
+  const stats: [string, string, string][] = [[o.area, 'ha', o.labels.area], [String(o.alerts), '', o.labels.alerts], [String(o.fires), '', o.labels.fires]];
+  const colW = (W - 192 - 40) / 3;
+  stats.forEach(([v, unit, label], i) => {
+    const x = 96 + i * (colW + 20), top = y + 60;
+    ctx.strokeStyle = LINE; ctx.lineWidth = 2; roundRect(ctx, x, top, colW, 170, 18); ctx.stroke();
+    ctx.fillStyle = i === 2 && o.fires > 0 ? FIRE : INK; ctx.font = `700 64px ${SANS}`; ctx.fillText(v, x + 24, top + 88);
+    if (unit) { const w = ctx.measureText(v).width; ctx.fillStyle = MUTED; ctx.font = `500 30px ${SANS}`; ctx.fillText(unit, x + 32 + w, top + 88); }
+    ctx.fillStyle = MUTED; ctx.font = `500 24px ${SANS}`; wrap(ctx, label, x + 24, top + 130, colW - 40, 28, 2);
+  });
+  ctx.fillStyle = INK; ctx.font = `500 34px ${SANS}`;
+  if (o.summary) wrap(ctx, o.summary, 96, y + 320, W - 192, 46, 6);
+  ctx.fillStyle = MUTED; ctx.font = `500 22px ${MONO}`; ctx.fillText('Global Forest Watch integrated alerts · NASA FIRMS', 96, H - 210);
 }
 
 // Render → PNG → native share sheet (phones), or download (desktop).
