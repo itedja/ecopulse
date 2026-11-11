@@ -1,0 +1,21 @@
+# GitHub switches off scheduled jobs on public repos after 60 days without commits.
+# This makes a tiny commit on the 1st of every month so the app never silently stops.
+name: Keep schedules alive
+on:
+  schedule:
+    - cron: '13 3 1 * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          date -u +%Y-%m-%dT%H:%M:%SZ > .github/keepalive
+          git config user.name "ecopulse-bot"
+          git config user.email "ecopulse-bot@users.noreply.github.com"
+          git add .github/keepalive
+          git commit -m "chore: keep scheduled workflows active" || echo "nothing to commit"
+          git push
