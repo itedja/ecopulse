@@ -200,20 +200,35 @@ async function main() {
 
     for (const p of outlines as { id: number; slug: string; name_en: string; geojson: unknown }[]) {
       try {
-        // (a) 7-day total
-        const [tot] = await gfwQuery<{ alert_count: number | null; area_ha: number | null }>(apiKey,
-          `SELECT COUNT(*) AS alert_count, SUM(area__ha) AS area_ha FROM results ` +
-          `WHERE gfw_integrated_alerts__date >= '${start7}' AND gfw_integrated_alerts__confidence IN ('high','highest')`, p.geojson);
+        // (a) 7-day total. GFW's SQL has no IN (...), so ask once per confidence level and add them up.
+        let alerts = 0, area = 0;
+        for (const level of ['high', 'highest']) {
+          const where = `WHERE gfw_integrated_alerts__date >= '${start7}' AND gfw_integrated_alerts__confidence = '${level}'`;
+          let row: { alert_count?: number | null; area_ha?: number | null } | undefined;
+          try {
+            [row] = await gfwQuery(apiKey, `SELECT COUNT(*) AS alert_count, SUM(area__ha) AS area_ha FROM results ${where}`, p.geojson);
+          } catch (err) {
+            if (!/422|unsupported/i.test(String(err))) throw err;
+            [row] = await gfwQuery(apiKey, `SELECT COUNT(*) AS alert_count FROM results ${where}`, p.geojson);   // area not supported: count only
+          }
+          alerts += Number(row?.alert_count ?? 0);
+          area += Number(row?.area_ha ?? 0);
+          await sleep(500);
+        }
         await upsertChunked('deforestation_province_7d', [{
-          province_id: p.id, alerts_7d: Number(tot?.alert_count ?? 0), area_ha_7d: Math.round(Number(tot?.area_ha ?? 0) * 100) / 100,
+          province_id: p.id, alerts_7d: alerts, area_ha_7d: area ? Math.round(area * 100) / 100 : null,
           window_start: start7, window_end: end, computed_at: new Date().toISOString(),
         }], 'province_id');
-        await sleep(800);
 
         // (b) points → ~1 km clusters
-        const pts = await gfwQuery<AlertPoint>(apiKey,
-          `SELECT latitude, longitude, gfw_integrated_alerts__date, area__ha FROM results ` +
-          `WHERE gfw_integrated_alerts__date >= '${startC}' AND gfw_integrated_alerts__confidence = 'highest'`, p.geojson);
+        const whereC = `WHERE gfw_integrated_alerts__date >= '${startC}' AND gfw_integrated_alerts__confidence = 'highest'`;
+        let pts: AlertPoint[];
+        try {
+          pts = await gfwQuery<AlertPoint>(apiKey, `SELECT latitude, longitude, gfw_integrated_alerts__date, area__ha FROM results ${whereC}`, p.geojson);
+        } catch (err) {
+          if (!/422|unsupported/i.test(String(err))) throw err;
+          pts = await gfwQuery<AlertPoint>(apiKey, `SELECT latitude, longitude, gfw_integrated_alerts__date FROM results ${whereC}`, p.geojson);
+        }
         const rows = clusterPoints(pts).map((c) => ({ ...c, province_id: p.id, updated_at: new Date().toISOString() }));
         clusters += await upsertChunked('deforestation_clusters', rows, 'grid_lat,grid_lon');
         provincesOk++;
