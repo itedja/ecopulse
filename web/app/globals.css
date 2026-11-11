@@ -56,12 +56,14 @@ button { font: inherit; color: inherit; }
   .map-pane { flex: 1 1 auto; height: auto; }
   .panel { width: 420px; flex: 0 0 420px; overflow-y: auto; padding-bottom: 24px; border-right: 1px solid var(--line); }
   .tabbar { display: none !important; }
-  .app .panel-news, .app .panel-map { display: block; }
 }
-/* Phone tabs */
+/* Tabs: the panel shows one section at a time; on phones the map shows only on the Map tab. */
+.app:not([data-tab='map']) .panel-map,
+.app:not([data-tab='news']) .panel-news,
+.app:not([data-tab='rank']) .panel-rank { display: none; }
 @media (max-width: 899px) {
-  .app[data-tab='news'] .map-pane, .app[data-tab='news'] .panel-map { display: none; }
-  .app[data-tab='map'] .panel-news { display: none; }
+  .app:not([data-tab='map']) .map-pane { display: none; }
+  .panel .panel-tabs { display: none; }
 }
 
 /* Layer chips on the map */
@@ -118,7 +120,7 @@ button { font: inherit; color: inherit; }
 .credits a { color: var(--muted); }
 
 /* Phone tab bar */
-.tabbar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; height: var(--tabbar); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+.tabbar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; height: var(--tabbar); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
   background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }
 .tabbar button { border: 0; background: transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
   font-size: 11px; font-weight: 500; color: var(--muted); cursor: pointer; }
@@ -129,3 +131,36 @@ button { font: inherit; color: inherit; }
 .pop-src { font-family: var(--mono); font-size: 11px; color: var(--muted); }
 
 :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* Buttons */
+.btn-ink, .btn-outline { height: 40px; padding: 0 14px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap; }
+.btn-ink { background: var(--ink); color: #FFFFFF; border: 0; }
+.btn-outline { background: var(--surface); color: var(--ink); border: 1px solid #D1D5DB; width: 100%; }
+.btn-ink:disabled, .btn-outline:disabled { opacity: 0.6; cursor: default; }
+
+/* Segmented control */
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); background: #E9ECEF; border-radius: 10px; padding: 3px; gap: 3px; }
+.seg button { height: 34px; border: 0; border-radius: 8px; background: transparent; font-size: 13px; font-weight: 600; color: var(--slate); cursor: pointer; }
+.seg button[aria-pressed='true'] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(14,17,22,0.12); }
+
+/* Rankings */
+.panel-rank { display: flex; flex-direction: column; gap: 12px; }
+.rank-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.rank-note { margin: 0; font-size: 14px; color: var(--slate); }
+.rank-list { list-style: none; margin: 0; padding: 0; }
+.rank-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 8px; }
+.rank-row + .rank-row { border-top: 1px solid var(--line); }
+.rank-row.mine { background: var(--ground); border-radius: 10px; }
+.rank-row.mine + .rank-row { border-top-color: transparent; }
+.rank-n { font-size: 13px; color: var(--muted); text-align: right; }
+.rank-body { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.rank-name { font-size: 15px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.you { font-size: 11px; font-weight: 600; color: #FFFFFF; background: var(--ink); padding: 2px 6px; border-radius: 5px; }
+.rank-bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.rank-bar span { display: block; height: 100%; border-radius: 3px; }
+.rank-v { display: flex; flex-direction: column; align-items: flex-end; min-width: 44px; }
+.rank-v b { font-size: 18px; }
+.rank-v .up { font-size: 11px; color: var(--fire); font-family: var(--mono); }
+.rank-v .down { font-size: 11px; color: #166534; font-family: var(--mono); }
+.rank-foot { margin: 0; line-height: 1.5; }

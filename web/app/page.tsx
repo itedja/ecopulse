@@ -6,6 +6,8 @@ import { T, type Lang, cityTimeZone, hhmm } from '@/lib/i18n';
 import { category, advice, cleanestWindow, calibrateForecast, type Category } from '@/lib/aqi';
 import { upwindFires, distanceKm, compass } from '@/lib/smoke';
 import type { LayerKey } from '@/components/MapView';
+import Rankings, { type RankingRow } from '@/components/Rankings';
+import { drawCityCard, shareCanvas } from '@/lib/shareCard';
 
 const MapView = dynamic(() => import('@/components/MapView'), { ssr: false, loading: () => <div className="map map-loading" /> });
 
@@ -17,14 +19,14 @@ const store = {
 
 type Data = {
   cities: City[]; aq: CityAq[]; fires: Hotspot[]; forecast: Forecast[];
-  wind: Wind[]; alerts: Alert[]; quakes: Quake[]; news: NewsItem[];
+  wind: Wind[]; alerts: Alert[]; quakes: Quake[]; news: NewsItem[]; rankings: RankingRow[];
 };
-const EMPTY: Data = { cities: [], aq: [], fires: [], forecast: [], wind: [], alerts: [], quakes: [], news: [] };
+const EMPTY: Data = { cities: [], aq: [], fires: [], forecast: [], wind: [], alerts: [], quakes: [], news: [], rankings: [] };
 
 async function loadAll(): Promise<Data> {
   const hour = new Date(); hour.setUTCMinutes(0, 0, 0);
   const now = new Date().toISOString();
-  const [cities, aq, fires, forecast, wind, alerts, quakes, news] = await Promise.all([
+  const [cities, aq, fires, forecast, wind, alerts, quakes, news, rankings] = await Promise.all([
     supabase.from('cities').select('id, slug, name_en, name_id, latitude, longitude, province_id').eq('is_featured', true).order('name_en'),
     supabase.from('city_aq_latest').select('*'),
     supabase.from('hotspots_recent').select('id, latitude, longitude, acquired_at, confidence, frp_mw, province_id').limit(5000),
@@ -34,6 +36,7 @@ async function loadAll(): Promise<Data> {
     supabase.from('earthquakes').select('id, occurred_at, magnitude, depth_km, latitude, longitude, region_text')
       .gt('occurred_at', new Date(Date.now() - 7 * 86400_000).toISOString()).order('occurred_at', { ascending: false }).limit(50),
     supabase.from('news_feed').select('*').order('published_at', { ascending: false }).limit(30),
+    supabase.from('province_rankings_7d').select('*'),
   ]);
   type WRow = { wind_speed_kmh: number | null; wind_direction_deg: number | null; weather_points: { latitude: number; longitude: number; city_id: number | null } | null };
   return {
@@ -48,6 +51,7 @@ async function loadAll(): Promise<Data> {
     alerts: (alerts.data ?? []) as Alert[],
     quakes: (quakes.data ?? []) as Quake[],
     news: (news.data ?? []) as NewsItem[],
+    rankings: (rankings.data ?? []) as RankingRow[],
   };
 }
 
@@ -56,7 +60,8 @@ export default function Home() {
   const [loaded, setLoaded] = useState(false);
   const [lang, setLang] = useState<Lang>('en');
   const [slug, setSlug] = useState('jakarta');
-  const [tab, setTab] = useState<'map' | 'news'>('map');
+  const [tab, setTab] = useState<'map' | 'rank' | 'news'>('map');
+  const [sharing, setSharing] = useState(false);
   const [layers, setLayers] = useState<Record<LayerKey, boolean>>({ air: true, fire: true, wind: true, alerts: true });
   const [now, setNow] = useState(() => Date.now());
   const t = T[lang];
@@ -97,6 +102,21 @@ export default function Home() {
   const chooseCity = (s: string) => { setSlug(s); store.set('ep.city', s); setTab('map'); };
   const chooseLang = (l: Lang) => { setLang(l); store.set('ep.lang', l); };
   const name = (c: City) => (lang === 'en' ? c.name_en : c.name_id);
+  const site = typeof window === 'undefined' ? 'ecopulse' : window.location.host;
+
+  async function shareCity() {
+    if (!city || !reading || !cat) return;
+    setSharing(true);
+    try {
+      const a = advice(cat.key, lang);
+      const when = new Date().toLocaleString(lang === 'en' ? 'en-GB' : 'id-ID', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: tz.tz }) + ` ${tz.label}`;
+      await shareCanvas((ctx) => drawCityCard(ctx, {
+        city: name(city), aqi: reading.aqi_us, catLabel: t.cats[cat.key], verdict: t.verdict[cat.key as Category], when,
+        lines: [[t.exercise, a.exercise], [t.mask, a.mask], ...(reading.pm25_ugm3 != null ? [['PM2.5', `${reading.pm25_ugm3} µg/m³`] as [string, string]] : [])],
+        source: 'Data: WAQI & originating EPAs · OpenAQ', site,
+      }), `ecopulse-${city.slug}-${new Date().toISOString().slice(0, 10)}.png`, `${name(city)}: AQI ${reading.aqi_us} · ${site}`);
+    } finally { setSharing(false); }
+  }
 
   return (
     <div className="app" data-tab={tab}>
@@ -133,6 +153,11 @@ export default function Home() {
         </section>
 
         <aside className="panel">
+          <div className="seg panel-tabs" role="group" aria-label="Sections">
+            <button aria-pressed={tab === 'map'} onClick={() => setTab('map')}>{t.tabs.map}</button>
+            <button aria-pressed={tab === 'rank'} onClick={() => setTab('rank')}>{t.tabs.rank}</button>
+            <button aria-pressed={tab === 'news'} onClick={() => setTab('news')}>{t.tabs.news}</button>
+          </div>
           {!supabaseConfigured && <div className="notice">Missing NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY.</div>}
 
           <section className="card verdict panel-map" aria-live="polite">
@@ -192,6 +217,10 @@ export default function Home() {
                   <span>{t.updated(minutesOld)} · {t.stations(reading.station_count)}</span>
                   <span>OpenAQ · WAQI</span>
                 </div>
+                <button className="btn-outline" onClick={shareCity} disabled={sharing}>
+                  <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /><path d="m16 6-4-4-4 4" /><path d="M12 2v13" /></svg>
+                  {sharing ? t.sharing : `${t.share} ${name(city!)}`}
+                </button>
               </>
             )}
           </section>
@@ -210,6 +239,8 @@ export default function Home() {
               <p className="mono small muted">{t.fires24(nearbyFires)} · BMKG · NASA FIRMS</p>
             </section>
           )}
+
+          {loaded && <Rankings rows={data.rankings} lang={lang} myProvinceId={city?.province_id ?? null} site={site} />}
 
           <section className="card panel-news">
             <h2 className="h2">{t.news}</h2>
@@ -242,6 +273,10 @@ export default function Home() {
         <button aria-pressed={tab === 'map'} onClick={() => setTab('map')}>
           <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.1 6.1 9.9 3.9a2 2 0 0 0-1.8 0L3.6 6.2A1 1 0 0 0 3 7v13l6-3 6 3 5.4-2.7A1 1 0 0 0 21 16.4V4l-6 3" /><path d="M9 3.9V17" /><path d="M15 7v13" /></svg>
           {t.tabs.map}
+        </button>
+        <button aria-pressed={tab === 'rank'} onClick={() => setTab('rank')}>
+          <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M7 16v-4" /><path d="M12 16V8" /><path d="M17 16v-7" /></svg>
+          {t.tabs.rank}
         </button>
         <button aria-pressed={tab === 'news'} onClick={() => setTab('news')}>
           <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2" /><path d="M18 14h-8" /><path d="M15 18h-5" /><path d="M10 6h8v4h-8V6Z" /></svg>
