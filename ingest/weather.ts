@@ -2,12 +2,15 @@
 //   Open-Meteo forecast  → weather_forecasts (wind + rain, next 72 h) for cities + fire zones
 //   Open-Meteo air API   → weather_forecasts.pm25/aqi (the 24-hour strip on the home screen)
 //   BMKG                 → earthquakes (M5+ list and latest felt quake)
+//   BMKG CAP feeds       → weather_alerts (heavy rain, strong wind, flood warnings)
 // Open-Meteo needs no key for non-commercial use.
 import { isMain } from './lib/main.ts';
 import { fetchRetry } from './lib/http.ts';
 import { db, upsertChunked } from './lib/db.ts';
 import { runJob } from './lib/run.ts';
 import { pm25ToAqi } from './lib/aqi.ts';
+import { sleep } from './lib/http.ts';
+import { parseCapFeed, parseCap, alertKind, provincesMentioned } from './lib/bmkg-cap.ts';
 
 // Grid points over historic haze sources (peatland in Sumatra and Kalimantan).
 // Wind here tells the app where smoke will drift.
@@ -87,6 +90,47 @@ async function ensureFireZonePoints() {
     'latitude,longitude', { ignoreDuplicates: true });
 }
 
+const CAP_FEED = 'https://cuaca.bmkg.go.id/data/public/cap/feed';
+
+async function ingestBmkgWarnings(warnings: string[]): Promise<number> {
+  const [en, id] = await Promise.all([
+    fetchRetry(`${CAP_FEED}/en/rss.xml`).then((r) => r.text()).then(parseCapFeed),
+    fetchRetry(`${CAP_FEED}/id/rss.xml`).then((r) => r.text()).then(parseCapFeed).catch(() => []),
+  ]);
+  const titleId = new Map(id.map((i) => [i.code, i.title]));
+
+  // Skip alerts we already stored (each CAP document is fetched only once).
+  const { data: known } = await db().from('weather_alerts').select('source_alert_id').eq('source', 'bmkg')
+    .gt('created_at', new Date(Date.now() - 7 * 86400_000).toISOString());
+  const seen = new Set((known ?? []).map((k) => k.source_alert_id as string));
+  const { data: provinces } = await db().from('provinces').select('id, name_id, name_en');
+
+  const rows: Record<string, unknown>[] = [];
+  for (const item of en.slice(0, 60)) {
+    if (!item.code || seen.has(item.code)) continue;
+    try {
+      const cap = parseCap(await (await fetchRetry(item.link)).text());
+      if (!cap) continue;
+      rows.push({
+        source: 'bmkg', source_alert_id: item.code,
+        kind: alertKind(cap.event, cap.headline ?? item.title),
+        severity: cap.severity,
+        headline_en: cap.headline ?? item.title,
+        headline_id: titleId.get(item.code) ?? null,
+        description: cap.description,
+        area: cap.wkt,
+        province_ids: provincesMentioned(`${item.title} ${cap.headline ?? ''} ${cap.areaDesc}`, provinces ?? []),
+        effective_at: cap.effective, expires_at: cap.expires,
+        raw: { identifier: cap.identifier, event: cap.event, areaDesc: cap.areaDesc.slice(0, 4000) },
+      });
+    } catch (err) {
+      warnings.push(`BMKG CAP ${item.code}: ${err instanceof Error ? err.message : err}`);
+    }
+    await sleep(1100);   // BMKG allows 60 requests/minute
+  }
+  return upsertChunked('weather_alerts', rows, 'source,source_alert_id');
+}
+
 async function main() {
   await runJob('weather', async () => {
     const warnings: string[] = [];
@@ -124,6 +168,13 @@ async function main() {
       total += await upsertChunked('earthquakes', quakeRows(quakes), 'source,source_id');
     } catch (err) {
       warnings.push(`BMKG quakes: ${err instanceof Error ? err.message : err}`);
+    }
+
+    // 4. BMKG extreme-weather warnings.
+    try {
+      total += await ingestBmkgWarnings(warnings);
+    } catch (err) {
+      warnings.push(`BMKG warnings: ${err instanceof Error ? err.message : err}`);
     }
 
     return { rows: total, partial: warnings.length ? warnings.join(' | ') : undefined };

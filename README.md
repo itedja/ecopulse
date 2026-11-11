@@ -8,7 +8,8 @@ weather and community reports. Everything updates automatically; nobody enters d
 | Job | Schedule (UTC) | Source | Writes to |
 |---|---|---|---|
 | `firms.yml` | every 3 h | NASA FIRMS (VIIRS NOAA-20/21, S-NPP) | `fire_hotspots` |
-| `air-weather.yml` | every 30 min | OpenAQ v3, AQICN, Open-Meteo, BMKG | `aq_*`, `city_aq_snapshots`, `weather_forecasts`, `earthquakes` |
+| `air-weather.yml` | every 30 min | OpenAQ v3, AQICN, Open-Meteo, BMKG (quakes + CAP warnings) | `aq_*`, `city_aq_snapshots`, `weather_forecasts`, `earthquakes` |
+| `news.yml` | hourly | RSS feeds (Mongabay, Antara…) + Claude Haiku | `news_articles` |
 | `maintenance.yml` | daily 19:41 (02:41 WIB) | — | deletes old data, expires reports, weekly province stats |
 | `keepalive.yml` | 1st of each month | — | tiny commit so GitHub never pauses the schedules |
 
@@ -41,7 +42,10 @@ npm run typecheck
 - **OpenAQ:** used for history and the province leaderboard. Credit OpenAQ and the data provider.
 - **NASA FIRMS:** fire data courtesy of NASA FIRMS (LANCE).
 - **Open-Meteo:** free for non-commercial use, CC BY 4.0.
-- **BMKG:** earthquake data from Badan Meteorologi, Klimatologi, dan Geofisika.
+- **BMKG:** earthquake data and extreme-weather warnings (CAP) from Badan Meteorologi, Klimatologi, dan Geofisika.
+- **Province borders:** "Indonesia GeoJSON & TopoJSON Maps (38 Provinces)" by denyherianto, CC BY 4.0
+  (github.com/denyherianto/indonesia-geojson-topojson-maps-with-38-provinces); geometry repaired with ST_MakeValid.
+- **News:** we store only the headline, link and our own AI-written summary. Article text stays with the publisher.
 
 ## Licence
 

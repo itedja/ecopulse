@@ -11,10 +11,12 @@
     "ingest:weather": "tsx ingest/weather.ts",
     "ingest:maintenance": "tsx ingest/maintenance.ts",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test ingest/**/*.test.ts"
+    "test": "tsx --test ingest/**/*.test.ts",
+    "ingest:news": "tsx ingest/news.ts"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.119.0"
+    "@supabase/supabase-js": "^2.119.0",
+    "fast-xml-parser": "^5.12.0"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
