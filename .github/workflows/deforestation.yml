@@ -1,0 +1,25 @@
+name: Deforestation alerts (daily)
+on:
+  schedule:
+    - cron: '53 21 * * *'   # 04:53 in Jakarta
+  workflow_dispatch:
+concurrency:
+  group: deforestation
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      GFW_EMAIL: ${{ secrets.GFW_EMAIL }}
+      GFW_PASSWORD: ${{ secrets.GFW_PASSWORD }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run ingest:deforestation
