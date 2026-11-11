@@ -1161,3 +1161,15 @@ select * from (values
    null, null, 90, date '2026-11-12')
 ) as v(action_type, issue_kinds, province_ids, org_name, title_en, title_id, description_en, description_id, url, whatsapp, priority, last_checked)
 where not exists (select 1 from help_actions h where h.title_en = v.title_en);
+
+-- =====================================================================
+-- PART 8 — (migration 006) private server settings
+-- =====================================================================
+create table if not exists server_settings (
+  key         text primary key,
+  value       jsonb not null,
+  updated_at  timestamptz not null default now()
+);
+alter table server_settings enable row level security;   -- no policies = invisible to the public
+revoke all on server_settings from anon, authenticated;
+grant all on server_settings to service_role;

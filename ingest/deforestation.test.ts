@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { clusterPoints, summaryPrompt } from './deforestation.ts';
+import { clusterPoints, summaryPrompt, keyNeedsRenewal } from './deforestation.ts';
 
 test('Alert points group onto a ~1 km grid with first/last dates and area', () => {
   const c = clusterPoints([
@@ -18,4 +18,12 @@ test('Summary prompt forbids accusations and carries the facts', () => {
   const p = summaryPrompt([{ i: 0, province: 'Central Kalimantan', area_ha: 12.5, alerts: 900, first: '2026-10-14', last: '2026-11-09', fires: 23, news: ['Peat fires flare'] }]);
   assert.ok(p.includes('Never name or accuse'));
   assert.ok(p.includes('~12.5 ha') && p.includes('23') && p.includes('"Peat fires flare"'));
+});
+
+test('GFW key: create when missing, keep when valid, renew 14 days before expiry', () => {
+  const now = Date.parse('2026-11-12T00:00:00Z');
+  assert.equal(keyNeedsRenewal(null, now), true);
+  assert.equal(keyNeedsRenewal({ api_key: 'k', expires_on: '2027-11-12T00:00:00Z' }, now), false);
+  assert.equal(keyNeedsRenewal({ api_key: 'k', expires_on: '2026-11-20T00:00:00Z' }, now), true);
+  assert.equal(keyNeedsRenewal({ api_key: 'k' }, now), false);
 });

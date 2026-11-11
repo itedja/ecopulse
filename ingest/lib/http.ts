@@ -12,7 +12,8 @@ export async function fetchRetry(
       if (res.ok) return res;
       // 4xx (except rate limit) won't fix itself: stop retrying.
       if (res.status !== 429 && res.status < 500) {
-        throw new HttpError(res.status, `${res.status} ${res.statusText} from ${redact(url)}`);
+        const detail = (await res.text().catch(() => '')).replace(/\s+/g, ' ').slice(0, 200);
+        throw new HttpError(res.status, `${res.status} ${res.statusText} from ${redact(url)}${detail ? ` — ${detail}` : ''}`);
       }
       lastErr = new HttpError(res.status, `${res.status} ${res.statusText} from ${redact(url)}`);
     } catch (err) {
