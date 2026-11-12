@@ -12,6 +12,9 @@ export default function MiniMap({ fires, cities, label }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<import('maplibre-gl').Map | null>(null);
   const [visible, setVisible] = useState(false);
+  // Always draw the newest numbers, even if the map finishes loading after they arrive.
+  const latest = useRef({ fires, cities });
+  latest.current = { fires, cities };
 
   useEffect(() => {
     const el = box.current;
@@ -51,7 +54,8 @@ export default function MiniMap({ fires, cities, label }: Props) {
 
   function draw() {
     const m = map.current;
-    if (!m || !m.isStyleLoaded() || !m.getSource('fires')) return;
+    if (!m || !m.getSource('fires')) return;
+    const { fires, cities } = latest.current;
     (m.getSource('fires') as import('maplibre-gl').GeoJSONSource).setData({ type: 'FeatureCollection',
       features: fires.map((c) => ({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: c } })) });
     (m.getSource('cities') as import('maplibre-gl').GeoJSONSource).setData({ type: 'FeatureCollection',

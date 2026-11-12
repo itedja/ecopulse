@@ -37,7 +37,7 @@
 .lp-map-link { position: relative; display: block; border-radius: 16px; overflow: hidden; border: 1px solid var(--line); color: var(--ink); }
 .lp-minimap { height: 260px; background: #DCE3EA; }
 .lp-map-hint { position: absolute; left: 12px; top: 12px; background: #FFFFFF; border-radius: 14px; padding: 6px 10px; font: 600 12px var(--font); box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
-.lp-legend { position: absolute; left: 12px; bottom: 12px; display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.92); border-radius: 8px; padding: 4px 8px; font-size: 11px; }
+.lp-legend { position: absolute; left: 12px; top: 48px; display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.92); border-radius: 8px; padding: 4px 8px; font-size: 11px; }
 .lp-legend i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .lp-legend .lg-fire { background: #C2410C; }
 .lp-legend .lg-air { background: conic-gradient(#2E9E5B 0 33%, #E8B10A 0 66%, #D93A2B 0); margin-left: 6px; border: 1px solid var(--ink); }
