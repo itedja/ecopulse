@@ -4,11 +4,11 @@ import { supabase } from '@/lib/supabase';
 import { T, type Lang } from '@/lib/i18n';
 import { KINDS, errorCode, getPosition, preparePhoto, type Kind } from '@/lib/community';
 
-type Props = { lang: Lang; userId: string; onDone: () => void; onCancel: () => void };
+type Props = { lang: Lang; userId: string; initialKind?: Kind | null; onDone: () => void; onCancel: () => void };
 
-export default function ReportForm({ lang, userId, onDone, onCancel }: Props) {
+export default function ReportForm({ lang, userId, initialKind, onDone, onCancel }: Props) {
   const t = T[lang].rep;
-  const [kind, setKind] = useState<Kind | null>(null);
+  const [kind, setKind] = useState<Kind | null>(initialKind ?? null);
   const [title, setTitle] = useState('');
   const [desc, setDesc] = useState('');
   const [photo, setPhoto] = useState<{ blob: Blob; hash: string; url: string } | null>(null);

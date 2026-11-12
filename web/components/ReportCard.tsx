@@ -3,13 +3,14 @@ import { useState } from 'react';
 import { supabase, photoUrl, type Report, type HelpAction } from '@/lib/supabase';
 import { T, type Lang } from '@/lib/i18n';
 import { errorCode, getPosition, span } from '@/lib/community';
+import HelpGuide from './HelpGuide';
 
 type Props = {
   report: Report; help: HelpAction[]; lang: Lang; userId: string | null; now: number;
   onSignIn: () => void; onClose: () => void; onVoted: () => void;
 };
 
-export default function ReportCard({ report: r, help, lang, userId, now, onSignIn, onClose, onVoted }: Props) {
+export default function ReportCard({ report: r, lang, userId, now, onSignIn, onClose, onVoted }: Props) {
   const t = T[lang].rep;
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -17,8 +18,6 @@ export default function ReportCard({ report: r, help, lang, userId, now, onSignI
   const statusText = r.status === 'confirmed'
     ? (r.verified_by === 'satellite' ? t.bySatellite : t.byPeople(r.confirmations))
     : (t.status as Record<string, string>)[r.status] ?? r.status;
-  const actions = help.filter((h) => h.issue_kinds.includes(r.kind) && (h.province_ids.length === 0 || (r.province_id != null && h.province_ids.includes(r.province_id))))
-    .filter((h) => h.action_type !== 'share').sort((a, b) => a.priority - b.priority);
 
   async function vote(v: 'still_here' | 'gone' | 'not_real') {
     if (!userId) { onSignIn(); return; }
@@ -66,25 +65,7 @@ export default function ReportCard({ report: r, help, lang, userId, now, onSignI
         {msg ? <p className={msg.ok ? 'form-ok' : 'form-error'} role="status">{msg.text}</p> : <span className="small muted">{userId ? t.voteHint : t.signInWhy}</span>}
       </div>
 
-      {actions.length > 0 && (
-        <div className="sub">
-          <span className="h2">{T[lang].forest.help}</span>
-          <ul className="help">
-            {actions.map((a) => (
-              <li key={a.id}>
-                <a className="help-row" href={a.url ?? undefined} target="_blank" rel="noopener noreferrer">
-                  <span className="help-body">
-                    <span className="help-title">{lang === 'id' ? a.title_id : a.title_en}</span>
-                    <span className="small muted">{[a.org_name, lang === 'id' ? a.description_id : a.description_en].filter(Boolean).join(' · ')}</span>
-                    {a.whatsapp && <span className="mono small">{T[lang].forest.hotline}: {a.whatsapp}</span>}
-                  </span>
-                  <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 17 17 7" /><path d="M7 7h10v10" /></svg>
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <HelpGuide lang={lang} only={r.kind} />
       <p className="mono small muted safety">{t.safety}</p>
     </section>
   );

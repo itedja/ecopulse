@@ -4,6 +4,8 @@ import { supabase, type Report, type Leader, type MyProfile } from '@/lib/supaba
 import { T, type Lang } from '@/lib/i18n';
 import { errorCode, kmBetween, rankProgress, span } from '@/lib/community';
 import ReportForm from './ReportForm';
+import HelpGuide from './HelpGuide';
+import { KINDS, type Kind } from '@/lib/community';
 
 type Props = {
   lang: Lang; now: number; reports: Report[]; leaders: Leader[];
@@ -15,6 +17,7 @@ type Props = {
 export default function Community({ lang, now, reports, leaders, userId, profile, authReady, near, onSignIn, onSignOut, onChanged, onOpenReport }: Props) {
   const t = T[lang].rep;
   const [writing, setWriting] = useState(false);
+  const [startKind, setStartKind] = useState<Kind | null>(null);
   const [sent, setSent] = useState(false);
   const [nick, setNick] = useState<string | null>(null);
   const [nickMsg, setNickMsg] = useState<string | null>(null);
@@ -40,7 +43,7 @@ export default function Community({ lang, now, reports, leaders, userId, profile
   return (
     <div className="panel-reports">
       {writing && userId ? (
-        <ReportForm lang={lang} userId={userId} onCancel={() => setWriting(false)}
+        <ReportForm lang={lang} userId={userId} initialKind={startKind} onCancel={() => setWriting(false)}
           onDone={() => { setWriting(false); setSent(true); onChanged(); }} />
       ) : (
         <section className="card cta">
@@ -50,7 +53,7 @@ export default function Community({ lang, now, reports, leaders, userId, profile
           </div>
           {sent && <p className="form-ok" role="status">{t.sent}</p>}
           {userId ? (
-            <button className="btn-ink full" onClick={() => { setSent(false); setWriting(true); }} disabled={profile?.reports_left_today === 0}>
+            <button className="btn-ink full" onClick={() => { setSent(false); setStartKind(null); setWriting(true); }} disabled={profile?.reports_left_today === 0}>
               <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
               {t.cta}
             </button>
@@ -64,6 +67,14 @@ export default function Community({ lang, now, reports, leaders, userId, profile
           )}
           {profile && <span className="mono small muted">{t.left(profile.reports_left_today)}</span>}
         </section>
+      )}
+
+      {!writing && (
+        <HelpGuide lang={lang} onReport={(k) => {
+          if (!userId) { onSignIn(); return; }
+          setSent(false); setStartKind((KINDS as readonly string[]).includes(k) ? (k as Kind) : null); setWriting(true);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }} />
       )}
 
       {profile && prog && (
