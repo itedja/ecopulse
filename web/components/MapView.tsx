@@ -41,6 +41,16 @@ function squareImage(selected: boolean): ImageData {
   return g.getImageData(0, 0, s, s);
 }
 
+// Air disc (colour = AQI category). Selected city gets a thick ink ring.
+function discImage(color: string, selected: boolean): ImageData {
+  const s = 72, c = document.createElement('canvas');
+  c.width = c.height = s;
+  const g = c.getContext('2d')!;
+  g.beginPath(); g.arc(36, 36, selected ? 35 : 30, 0, Math.PI * 2); g.fillStyle = selected ? '#0E1116' : '#FFFFFF'; g.fill();
+  g.beginPath(); g.arc(36, 36, selected ? 29 : 26, 0, Math.PI * 2); g.fillStyle = color; g.fill();
+  return g.getImageData(0, 0, s, s);
+}
+
 // Community report pin (teal = people's reports). Filled = confirmed, hollow = not confirmed yet,
 // grey = may be resolved. Selected pins get an ink ring.
 const REPORT = '#0F766E';
@@ -75,7 +85,7 @@ function arrowImage(): ImageData {
 }
 
 const LAYER_IDS: Record<LayerKey, string[]> = {
-  air: ['aq-circle', 'aq-label'],
+  air: ['aq-circle', 'aq-selected'],
   fire: ['fire-dot'],
   forest: ['forest-sq'],
   reports: ['report-pin'],
@@ -150,23 +160,29 @@ export default function MapView({ aq, fires, wind, alerts, quakes, forests, repo
           'circle-radius': ['interpolate', ['linear'], ['get', 'mag'], 4, 4, 7, 12],
         },
       });
+      // Air readings: one symbol (coloured disc + number) so overlapping cities hide each other
+      // instead of printing numbers on top of each other. The selected city always wins.
+      const aqLayout: maplibregl.SymbolLayerSpecification['layout'] = {
+        'icon-image': ['concat', 'aq-', ['get', 'color'], ['case', ['get', 'selected'], '-sel', '']],
+        'icon-padding': 1, 'text-field': ['to-string', ['get', 'aqi']], 'text-size': ['case', ['get', 'selected'], 12, 11],
+        'text-font': ['Noto Sans Bold'],
+      };
       m.addLayer({
-        id: 'aq-circle', type: 'circle', source: 'aq',
-        paint: {
-          'circle-color': ['get', 'color'], 'circle-radius': ['case', ['get', 'selected'], 17, 14],
-          'circle-stroke-color': ['case', ['get', 'selected'], '#0E1116', '#FFFFFF'], 'circle-stroke-width': ['case', ['get', 'selected'], 3, 2],
-        },
+        id: 'aq-circle', type: 'symbol', source: 'aq', filter: ['!', ['get', 'selected']],
+        layout: { ...aqLayout, 'icon-allow-overlap': false, 'text-allow-overlap': false, 'symbol-sort-key': ['-', 1000, ['get', 'aqi']] },
+        paint: { 'text-color': ['get', 'ink'] },
       });
+      // The selected city sits above and always shows; nearby cities that would cover it hide.
       m.addLayer({
-        id: 'aq-label', type: 'symbol', source: 'aq',
-        layout: { 'text-field': ['to-string', ['get', 'aqi']], 'text-size': 11, 'text-font': ['Noto Sans Bold'], 'text-allow-overlap': true },
+        id: 'aq-selected', type: 'symbol', source: 'aq', filter: ['get', 'selected'],
+        layout: { ...aqLayout, 'icon-allow-overlap': true, 'text-allow-overlap': true },
         paint: { 'text-color': ['get', 'ink'] },
       });
       m.addLayer({
         id: 'report-pin', type: 'symbol', source: 'reports',
         layout: {
           'icon-image': ['concat', 'pin-', ['get', 'style'], ['case', ['get', 'selected'], '-sel', '']],
-          'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-size': 1, 'symbol-sort-key': ['get', 'order'],
+          'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-ignore-placement': true, 'icon-size': 1, 'symbol-sort-key': ['get', 'order'],
         },
       });
 
@@ -201,6 +217,12 @@ export default function MapView({ aq, fires, wind, alerts, quakes, forests, repo
       popup('alert-fill', (p) => `<b>${esc(p.headline)}</b><br><span class="pop-src">BMKG</span>`);
       m.on('mouseenter', 'aq-circle', () => (m.getCanvas().style.cursor = 'pointer'));
       m.on('mouseleave', 'aq-circle', () => (m.getCanvas().style.cursor = ''));
+
+      // Make each AQI colour's disc the first time it is needed.
+      m.on('styleimagemissing', (e) => {
+        const mt = /^aq-(#[0-9A-Fa-f]{6})(-sel)?$/.exec(e.id);
+        if (mt && !m.hasImage(e.id)) m.addImage(e.id, discImage(mt[1], Boolean(mt[2])), { pixelRatio: 2 });
+      });
 
       ready.current = true;
       m.fire('ecopulse:ready');
