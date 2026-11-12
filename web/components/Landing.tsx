@@ -113,7 +113,7 @@ export default function Landing() {
           <button aria-pressed={lang === 'en'} onClick={() => chooseLang('en')}>EN</button>
           <button aria-pressed={lang === 'id'} onClick={() => chooseLang('id')}>ID</button>
         </div>
-        <a className="lp-btn lp-btn-dark lp-top-cta" href="#get">{t.nav.get}</a>
+        {!dev.standalone && <a className="lp-btn lp-btn-dark lp-top-cta" href="#get">{t.nav.get}</a>}
       </header>
 
       <section className="lp-hero">
@@ -122,8 +122,10 @@ export default function Landing() {
           <h1>{t.h1}</h1>
           <p className="lp-lede">{t.lede}</p>
           <div className="lp-ctas">
-            <a className="lp-btn lp-btn-dark" href="#get">{t.ctaApp}</a>
-            <a className="lp-btn lp-btn-line" href="/app">{t.ctaMap}</a>
+            {dev.standalone ? <a className="lp-btn lp-btn-dark" href="/app">{t.ctaMap}</a> : <>
+              <a className="lp-btn lp-btn-dark" href="#get">{t.ctaApp}</a>
+              <a className="lp-btn lp-btn-line" href="/app">{t.ctaMap}</a>
+            </>}
           </div>
         </div>
         <a className="lp-map-link" href="/app" aria-label={t.ctaMap}>
@@ -183,7 +185,7 @@ export default function Landing() {
         <HelpGuide lang={lang} onReport={() => { location.href = '/app?tab=reports'; }} />
       </section>
 
-      <section id="get" className="lp-wrap">
+      {!dev.standalone && <section id="get" className="lp-wrap">
         <div className="lp-get">
           <h2>{t.getTitle}</h2>
           <p>{t.getSub}</p>
@@ -207,7 +209,7 @@ export default function Landing() {
           </div>
           {dev.os === 'other' && <p className="lp-get-note">{t.desktopNote}</p>}
         </div>
-      </section>
+      </section>}
 
       <footer className="lp-foot">
         <p>{t.footer} · <a href="/privacy">{t.privacy}</a> · <a href={`mailto:${CONTACT}`}>{t.contact}</a></p>

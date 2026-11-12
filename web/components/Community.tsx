@@ -11,10 +11,10 @@ type Props = {
   lang: Lang; now: number; reports: Report[]; leaders: Leader[];
   userId: string | null; profile: MyProfile | null; authReady: boolean;
   near: { lat: number; lon: number } | null;
-  onSignIn: () => void; onSignOut: () => void; onChanged: () => void; onOpenReport: (id: string) => void;
+  onSignIn: () => void; onSignOut: () => void; waiting?: boolean; onCancelWaiting?: () => void; onChanged: () => void; onOpenReport: (id: string) => void;
 };
 
-export default function Community({ lang, now, reports, leaders, userId, profile, authReady, near, onSignIn, onSignOut, onChanged, onOpenReport }: Props) {
+export default function Community({ lang, now, reports, leaders, userId, profile, authReady, near, onSignIn, onSignOut, waiting, onCancelWaiting, onChanged, onOpenReport }: Props) {
   const t = T[lang].rep;
   const [writing, setWriting] = useState(false);
   const [startKind, setStartKind] = useState<Kind | null>(null);
@@ -62,7 +62,10 @@ export default function Community({ lang, now, reports, leaders, userId, profile
               <button className="btn-ink full" onClick={onSignIn} disabled={!authReady}>
                 {t.signIn}
               </button>
-              <p className="small muted">{t.signInWhy}</p>
+              {waiting ? (
+                <p className="small muted" role="status">{t.signInWaiting}{' '}
+                  <button className="link-btn" onClick={onCancelWaiting}>{t.cancel}</button></p>
+              ) : <p className="small muted">{t.signInWhy}</p>}
             </>
           )}
           {profile && <span className="mono small muted">{t.left(profile.reports_left_today)}</span>}

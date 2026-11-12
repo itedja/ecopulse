@@ -313,7 +313,7 @@ export default function Home() {
           {tab === 'reports' && (
             <Community lang={lang} now={now} reports={data.reports} leaders={data.leaders} userId={auth.userId} profile={auth.profile}
               authReady={auth.ready} near={city ? { lat: city.latitude, lon: city.longitude } : null}
-              onSignIn={auth.signIn} onSignOut={auth.signOut} onChanged={afterChange} onOpenReport={openReport} />
+              onSignIn={auth.signIn} onSignOut={auth.signOut} waiting={auth.waiting} onCancelWaiting={auth.cancelWaiting} onChanged={afterChange} onOpenReport={openReport} />
           )}
 
           {loaded && <Rankings rows={data.rankings} lang={lang} myProvinceId={city?.province_id ?? null} site={site} />}
