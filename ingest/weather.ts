@@ -131,7 +131,21 @@ async function ingestBmkgWarnings(warnings: string[]): Promise<number> {
   return upsertChunked('weather_alerts', rows, 'source,source_alert_id');
 }
 
+// Air runs every 15 min, but forecasts only change about hourly and Open-Meteo's free plan allows
+// 10,000 requests a day. So the weather part runs at most every ~25 minutes.
+export const WEATHER_MIN_GAP_MIN = 25;
+export function weatherIsDue(lastSuccessIso: string | null, now = Date.now()): boolean {
+  if (!lastSuccessIso) return true;
+  return now - new Date(lastSuccessIso).getTime() >= WEATHER_MIN_GAP_MIN * 60_000;
+}
+
 async function main() {
+  const { data: last } = await db().from('ingestion_runs').select('started_at')
+    .eq('job', 'weather').in('status', ['success', 'partial']).order('started_at', { ascending: false }).limit(1).maybeSingle();
+  if (!weatherIsDue(last?.started_at ?? null)) {
+    console.log(`[weather] skipped: last update ${Math.round((Date.now() - new Date(last!.started_at).getTime()) / 60_000)} min ago`);
+    return;
+  }
   await runJob('weather', async () => {
     const warnings: string[] = [];
     await ensureFireZonePoints();

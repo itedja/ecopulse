@@ -75,3 +75,11 @@ test('BMKG CAP: feed links, polygon lat/lon order, kind, provinces', () => {
   assert.deepEqual(provincesMentioned('Papua Barat Daya dan DKI Jakarta', PROVS).sort(), [11, 38]);
   assert.equal(capCode('https://x/y/abc.xml?x=1'), 'abc');
 });
+
+import { weatherIsDue } from './weather.ts';
+test('weather runs at most every ~25 minutes', () => {
+  const now = Date.parse('2026-11-12T05:22:00Z');
+  assert.equal(weatherIsDue(null, now), true);
+  assert.equal(weatherIsDue('2026-11-12T05:07:30Z', now), false);   // 15 min ago → skip
+  assert.equal(weatherIsDue('2026-11-12T04:52:00Z', now), true);    // 30 min ago → run
+});

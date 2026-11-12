@@ -86,7 +86,7 @@ function arrowImage(): ImageData {
 }
 
 const LAYER_IDS: Record<LayerKey, string[]> = {
-  air: ['aq-circle', 'aq-selected', 'st-circle', 'st-label'],
+  air: ['aq-circle', 'aq-selected', 'st-circle'],
   fire: ['fire-dot'],
   forest: ['forest-sq'],
   reports: ['report-pin'],
@@ -180,13 +180,15 @@ export default function MapView({ aq, stations, fires, wind, alerts, quakes, for
         paint: { 'text-color': ['get', 'ink'] },
       });
       // Zoomed in: every monitoring station, like WAQI's map. Zoomed out: one disc per city.
+      // Zoomed in: every monitoring station, like WAQI's map. Stations too close together hide behind the
+      // worse reading until you zoom in further, so numbers never print on top of each other.
       m.addLayer({
-        id: 'st-circle', type: 'circle', source: 'stations', minzoom: 9,
-        paint: { 'circle-color': ['get', 'color'], 'circle-radius': 13, 'circle-stroke-color': '#FFFFFF', 'circle-stroke-width': 1.5 },
-      });
-      m.addLayer({
-        id: 'st-label', type: 'symbol', source: 'stations', minzoom: 9,
-        layout: { 'text-field': ['to-string', ['get', 'aqi']], 'text-size': 10, 'text-font': ['Noto Sans Bold'], 'text-allow-overlap': true },
+        id: 'st-circle', type: 'symbol', source: 'stations', minzoom: 9,
+        layout: {
+          'icon-image': ['concat', 'aq-', ['get', 'color']], 'icon-size': 0.85, 'icon-padding': 0,
+          'text-field': ['to-string', ['get', 'aqi']], 'text-size': 10, 'text-font': ['Noto Sans Bold'],
+          'icon-allow-overlap': false, 'text-allow-overlap': false, 'symbol-sort-key': ['-', 1000, ['get', 'aqi']],
+        },
         paint: { 'text-color': ['get', 'ink'] },
       });
       m.addLayer({
