@@ -33,3 +33,5 @@ export type MyProfile = { nickname: string; points: number; rank_key: string; re
 export type Leader = { nickname: string; points: number; rank_key: string; overall_rank: number };
 
 export const photoUrl = (path: string) => `${url}/storage/v1/object/public/report-photos/${path}`;
+export type Station = { id: number; name: string; source: string; attribution: string | null; latitude: number; longitude: number;
+  aqi: number; pm25: number | null; measured_at: string };

@@ -4,12 +4,13 @@ import { useEffect, useRef } from 'react';
 import maplibregl, { type GeoJSONSource, type Map as MLMap } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { category } from '@/lib/aqi';
-import type { CityAq, Hotspot, Wind, Alert, Quake, City, ForestAlert, Report } from '@/lib/supabase';
+import type { CityAq, Hotspot, Wind, Alert, Quake, City, ForestAlert, Report, Station } from '@/lib/supabase';
 
 export type LayerKey = 'air' | 'fire' | 'forest' | 'reports' | 'wind' | 'alerts';
 
 type Props = {
   aq: CityAq[];
+  stations: Station[];
   fires: Hotspot[];
   wind: Wind[];
   alerts: Alert[];
@@ -85,7 +86,7 @@ function arrowImage(): ImageData {
 }
 
 const LAYER_IDS: Record<LayerKey, string[]> = {
-  air: ['aq-circle', 'aq-selected'],
+  air: ['aq-circle', 'aq-selected', 'st-circle', 'st-label'],
   fire: ['fire-dot'],
   forest: ['forest-sq'],
   reports: ['report-pin'],
@@ -93,7 +94,7 @@ const LAYER_IDS: Record<LayerKey, string[]> = {
   alerts: ['alert-fill', 'alert-line', 'quake-ring'],
 };
 
-export default function MapView({ aq, fires, wind, alerts, quakes, forests, reports, selectedReportId, onSelectReport, onSelectForest, selectedForestId, layers, selected, onSelectCity, lang }: Props) {
+export default function MapView({ aq, stations, fires, wind, alerts, quakes, forests, reports, selectedReportId, onSelectReport, onSelectForest, selectedForestId, layers, selected, onSelectCity, lang }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<MLMap | null>(null);
   const ready = useRef(false);
@@ -124,7 +125,7 @@ export default function MapView({ aq, fires, wind, alerts, quakes, forests, repo
         m.addImage(`pin-${st}`, pinImage(st, false), { pixelRatio: 2 });
         m.addImage(`pin-${st}-sel`, pinImage(st, true), { pixelRatio: 2 });
       }
-      for (const id of ['aq', 'fires', 'wind', 'alerts', 'quakes', 'forest', 'reports']) m.addSource(id, { type: 'geojson', data: fc([]) });
+      for (const id of ['aq', 'stations', 'fires', 'wind', 'alerts', 'quakes', 'forest', 'reports']) m.addSource(id, { type: 'geojson', data: fc([]) });
 
       m.addLayer({ id: 'alert-fill', type: 'fill', source: 'alerts', paint: { 'fill-color': '#2563EB', 'fill-opacity': 0.12 } });
       m.addLayer({ id: 'alert-line', type: 'line', source: 'alerts', paint: { 'line-color': '#2563EB', 'line-width': 1, 'line-opacity': 0.6 } });
@@ -168,14 +169,24 @@ export default function MapView({ aq, fires, wind, alerts, quakes, forests, repo
         'text-font': ['Noto Sans Bold'],
       };
       m.addLayer({
-        id: 'aq-circle', type: 'symbol', source: 'aq', filter: ['!', ['get', 'selected']],
+        id: 'aq-circle', type: 'symbol', source: 'aq', filter: ['!', ['get', 'selected']], maxzoom: 9,
         layout: { ...aqLayout, 'icon-allow-overlap': false, 'text-allow-overlap': false, 'symbol-sort-key': ['-', 1000, ['get', 'aqi']] },
         paint: { 'text-color': ['get', 'ink'] },
       });
       // The selected city sits above and always shows; nearby cities that would cover it hide.
       m.addLayer({
-        id: 'aq-selected', type: 'symbol', source: 'aq', filter: ['get', 'selected'],
+        id: 'aq-selected', type: 'symbol', source: 'aq', filter: ['get', 'selected'], maxzoom: 9,
         layout: { ...aqLayout, 'icon-allow-overlap': true, 'text-allow-overlap': true },
+        paint: { 'text-color': ['get', 'ink'] },
+      });
+      // Zoomed in: every monitoring station, like WAQI's map. Zoomed out: one disc per city.
+      m.addLayer({
+        id: 'st-circle', type: 'circle', source: 'stations', minzoom: 9,
+        paint: { 'circle-color': ['get', 'color'], 'circle-radius': 13, 'circle-stroke-color': '#FFFFFF', 'circle-stroke-width': 1.5 },
+      });
+      m.addLayer({
+        id: 'st-label', type: 'symbol', source: 'stations', minzoom: 9,
+        layout: { 'text-field': ['to-string', ['get', 'aqi']], 'text-size': 10, 'text-font': ['Noto Sans Bold'], 'text-allow-overlap': true },
         paint: { 'text-color': ['get', 'ink'] },
       });
       m.addLayer({
@@ -212,6 +223,7 @@ export default function MapView({ aq, fires, wind, alerts, quakes, forests, repo
         m.on('mouseleave', layer, () => (m.getCanvas().style.cursor = ''));
       };
       const esc = (s: unknown) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!);
+      popup('st-circle', (p) => `<b>${esc(p.name) || (langRef.current === 'en' ? 'Monitoring station' : 'Stasiun pemantau')}</b><br>AQI ${esc(p.aqi)}${p.pm25 != null && p.pm25 !== '' ? ` · PM2.5 ${esc(p.pm25)} µg/m³` : ''}<br>${esc(p.when)}<br><span class="pop-src">${esc(p.src)}</span>`);
       popup('fire-dot', (p) => `<b>${langRef.current === 'en' ? 'Fire hotspot' : 'Titik api'}</b><br>${esc(p.when)}<br>${langRef.current === 'en' ? 'Confidence' : 'Keyakinan'}: ${esc(p.confidence)}<br><span class="pop-src">NASA FIRMS</span>`);
       popup('quake-ring', (p) => `<b>M${esc(p.mag)}</b> · ${esc(p.depth)} km<br>${esc(p.region)}<br>${esc(p.when)}<br><span class="pop-src">BMKG</span>`);
       popup('alert-fill', (p) => `<b>${esc(p.headline)}</b><br><span class="pop-src">BMKG</span>`);
@@ -240,6 +252,11 @@ export default function MapView({ aq, fires, wind, alerts, quakes, forests, repo
         const cat = category(c.aqi_us)!;
         return pt(c.longitude, c.latitude, { slug: c.slug, aqi: c.aqi_us, color: cat.color, ink: cat.ink, selected: c.slug === selected?.slug });
       })));
+      (m.getSource('stations') as GeoJSONSource)?.setData(fc(stations.map((st) => {
+        const cat = category(st.aqi)!;
+        return pt(st.longitude, st.latitude, { name: st.name, aqi: st.aqi, pm25: st.pm25 ?? '', color: cat.color, ink: cat.ink, when: when(st.measured_at),
+          src: [st.source === 'aqicn' ? 'WAQI' : st.source === 'openaq' ? 'OpenAQ' : st.source, st.attribution].filter(Boolean).join(' · ') });
+      })));
       (m.getSource('fires') as GeoJSONSource)?.setData(fc(fires.map((f) =>
         pt(f.longitude, f.latitude, { confidence: f.confidence, when: when(f.acquired_at) }))));
       (m.getSource('wind') as GeoJSONSource)?.setData(fc(wind.filter((w) => w.wind_direction_deg != null).map((w) =>
@@ -258,7 +275,7 @@ export default function MapView({ aq, fires, wind, alerts, quakes, forests, repo
         pt(q.longitude, q.latitude, { mag: q.magnitude, depth: q.depth_km ?? '?', region: q.region_text ?? '', when: when(q.occurred_at) }))));
     };
     if (ready.current) apply(); else m.once('ecopulse:ready', apply);
-  }, [aq, fires, wind, alerts, quakes, forests, reports, selectedReportId, selectedForestId, selected, lang]);
+  }, [aq, stations, fires, wind, alerts, quakes, forests, reports, selectedReportId, selectedForestId, selected, lang]);
 
   // Layer toggles.
   useEffect(() => {

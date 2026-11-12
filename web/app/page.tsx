@@ -1,9 +1,9 @@
 'use client';
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { supabase, supabaseConfigured, type City, type CityAq, type Hotspot, type Forecast, type Wind, type Alert, type Quake, type NewsItem, type ForestAlert, type HelpAction, type Report, type Leader } from '@/lib/supabase';
+import { supabase, supabaseConfigured, type City, type CityAq, type Hotspot, type Forecast, type Wind, type Alert, type Quake, type NewsItem, type ForestAlert, type HelpAction, type Report, type Leader, type Station } from '@/lib/supabase';
 import { T, type Lang, cityTimeZone, hhmm } from '@/lib/i18n';
-import { category, advice, cleanestWindow, calibrateForecast, type Category } from '@/lib/aqi';
+import { category, advice, cleanestWindow, calibrateForecast, pm25ToAqi, type Category } from '@/lib/aqi';
 import { upwindFires, distanceKm, compass } from '@/lib/smoke';
 import type { LayerKey } from '@/components/MapView';
 import Rankings, { type RankingRow } from '@/components/Rankings';
@@ -25,14 +25,33 @@ const store = {
 
 type Data = {
   cities: City[]; aq: CityAq[]; fires: Hotspot[]; forecast: Forecast[];
-  wind: Wind[]; alerts: Alert[]; quakes: Quake[]; news: NewsItem[]; rankings: RankingRow[]; forests: ForestAlert[]; help: HelpAction[]; reports: Report[]; leaders: Leader[];
+  wind: Wind[]; alerts: Alert[]; quakes: Quake[]; news: NewsItem[]; rankings: RankingRow[]; forests: ForestAlert[]; help: HelpAction[]; reports: Report[]; leaders: Leader[]; stations: Station[];
 };
-const EMPTY: Data = { cities: [], aq: [], fires: [], forecast: [], wind: [], alerts: [], quakes: [], news: [], rankings: [], forests: [], help: [], reports: [], leaders: [] };
+const EMPTY: Data = { cities: [], aq: [], fires: [], forecast: [], wind: [], alerts: [], quakes: [], news: [], rankings: [], forests: [], help: [], reports: [], leaders: [], stations: [] };
+
+type RRow = { station_id: number; measured_at: string; pm25_ugm3: number | null; aqi_us: number | null;
+  aq_stations: { name: string | null; source: string; attribution: string | null; latitude: number; longitude: number } | null };
+
+// Newest reading per station. Readings of 0 or below are broken sensors, so they're skipped.
+function latestStations(rows: RRow[]): Station[] {
+  const seen = new Set<number>();
+  const out: Station[] = [];
+  for (const r of rows) {
+    if (seen.has(r.station_id) || !r.aq_stations) continue;
+    const aqi = r.aqi_us ?? (r.pm25_ugm3 != null ? pm25ToAqi(Number(r.pm25_ugm3)) : null);
+    if (aqi == null || aqi < 1 || aqi > 999) continue;
+    seen.add(r.station_id);
+    out.push({ id: r.station_id, name: r.aq_stations.name ?? '', source: r.aq_stations.source, attribution: r.aq_stations.attribution,
+      latitude: r.aq_stations.latitude, longitude: r.aq_stations.longitude, aqi: Math.round(aqi),
+      pm25: r.pm25_ugm3 != null ? Number(r.pm25_ugm3) : null, measured_at: r.measured_at });
+  }
+  return out;
+}
 
 async function loadAll(): Promise<Data> {
   const hour = new Date(); hour.setUTCMinutes(0, 0, 0);
   const now = new Date().toISOString();
-  const [cities, aq, fires, forecast, wind, alerts, quakes, news, rankings, forests, help, reports, leaders] = await Promise.all([
+  const [cities, aq, fires, forecast, wind, alerts, quakes, news, rankings, forests, help, reports, leaders, readings] = await Promise.all([
     supabase.from('cities').select('id, slug, name_en, name_id, latitude, longitude, province_id').eq('is_featured', true).order('name_en'),
     supabase.from('city_aq_latest').select('*'),
     supabase.from('hotspots_recent').select('id, latitude, longitude, acquired_at, confidence, frp_mw, province_id').limit(5000),
@@ -47,12 +66,17 @@ async function loadAll(): Promise<Data> {
     supabase.from('help_actions').select('*').eq('is_active', true).order('priority'),
     supabase.from('reports_public').select('*').order('created_at', { ascending: false }).limit(500),
     supabase.from('leaderboard_users').select('nickname, points, rank_key, overall_rank').order('overall_rank').limit(20),
+    // Individual monitoring stations (latest reading in the last 3 hours), shown when zoomed in.
+    supabase.from('aq_readings').select('station_id, measured_at, pm25_ugm3, aqi_us, aq_stations(name, source, attribution, latitude, longitude)')
+      .gt('measured_at', new Date(Date.now() - 3 * 3600_000).toISOString()).order('measured_at', { ascending: false }).limit(5000),
   ]);
   type WRow = { wind_speed_kmh: number | null; wind_direction_deg: number | null; weather_points: { latitude: number; longitude: number; city_id: number | null } | null };
   return {
     cities: (cities.data ?? []) as City[],
     aq: (aq.data ?? []) as CityAq[],
-    fires: (fires.data ?? []) as Hotspot[],
+    // Only fires matched to an Indonesian province (land, or within 15 km of the coast). Drops gas flares at sea
+    // and heat sources in Singapore/Malaysia.
+    fires: ((fires.data ?? []) as Hotspot[]).filter((f) => f.province_id != null),
     forecast: (forecast.data ?? []) as Forecast[],
     wind: ((wind.data ?? []) as unknown as WRow[]).filter((w) => w.weather_points).map((w) => ({
       latitude: w.weather_points!.latitude, longitude: w.weather_points!.longitude, city_id: w.weather_points!.city_id,
@@ -66,6 +90,7 @@ async function loadAll(): Promise<Data> {
     help: (help.data ?? []) as HelpAction[],
     reports: (reports.data ?? []) as Report[],
     leaders: (leaders.data ?? []) as Leader[],
+    stations: latestStations((readings.data ?? []) as unknown as RRow[]),
   };
 }
 
@@ -172,7 +197,7 @@ export default function Home() {
 
       <main className="layout">
         <section className="map-pane">
-          <MapView aq={data.aq} fires={data.fires} wind={data.wind} alerts={data.alerts} quakes={data.quakes}
+          <MapView aq={data.aq} stations={data.stations} fires={data.fires} wind={data.wind} alerts={data.alerts} quakes={data.quakes}
             forests={data.forests} selectedForestId={forestId} onSelectForest={(id) => { setForestId(id); setReportId(null); setTab('map'); }}
             reports={data.reports} selectedReportId={reportId} onSelectReport={openReport}
             layers={layers} selected={city} onSelectCity={chooseCity} lang={lang} />
