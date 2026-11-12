@@ -12,6 +12,15 @@ export const metadata: Metadata = {
   },
 };
 
+// The installed app (home-screen icon) always opens on the map, never on this page.
+// Runs before anything is drawn, so there's no flash of the landing page.
+const OPEN_MAP_IF_INSTALLED = `try{if((window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true){location.replace('/app'+location.search)}}catch(e){}`;
+
 export default function Home() {
-  return <Landing />;
+  return (
+    <>
+      <script dangerouslySetInnerHTML={{ __html: OPEN_MAP_IF_INSTALLED }} />
+      <Landing />
+    </>
+  );
 }

@@ -12,6 +12,7 @@ import ReportCard from '@/components/ReportCard';
 import Community from '@/components/Community';
 import { useAuth } from '@/lib/useAuth';
 import { drawCityCard, shareCanvas } from '@/lib/shareCard';
+import { isInstalledApp } from '@/lib/handoff';
 
 const MapView = dynamic(() => import('@/components/MapView'), { ssr: false, loading: () => <div className="map map-loading" /> });
 
@@ -105,6 +106,8 @@ export default function Home() {
   const [forestId, setForestId] = useState<number | null>(null);
   const [reportId, setReportId] = useState<string | null>(null);
   const auth = useAuth();
+  const [installed, setInstalled] = useState(false);   // home-screen app: no way back to the website
+  useEffect(() => { setInstalled(isInstalledApp()); }, []);
   const [now, setNow] = useState(() => Date.now());
   const t = T[lang];
 
@@ -177,13 +180,21 @@ export default function Home() {
   return (
     <div className="app" data-tab={tab}>
       <header className="topbar">
-        <a className="brand brand-home" href="/" title={lang === 'en' ? 'Back to home' : 'Kembali ke beranda'}>
-          <svg className="home-arrow" aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
-          <span className="sr-only">{lang === 'en' ? 'Back to home' : 'Kembali ke beranda'}</span>
-          <span className="brand-mark" aria-hidden="true" />
-          <span className="brand-name">EcoPulse</span>
-          <span className="brand-sub">Indonesia</span>
-        </a>
+        {installed ? (
+          <div className="brand">
+            <span className="brand-mark" aria-hidden="true" />
+            <span className="brand-name">EcoPulse</span>
+            <span className="brand-sub">Indonesia</span>
+          </div>
+        ) : (
+          <a className="brand brand-home" href="/" title={lang === 'en' ? 'Back to home' : 'Kembali ke beranda'}>
+            <svg className="home-arrow" aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+            <span className="sr-only">{lang === 'en' ? 'Back to home' : 'Kembali ke beranda'}</span>
+            <span className="brand-mark" aria-hidden="true" />
+            <span className="brand-name">EcoPulse</span>
+            <span className="brand-sub">Indonesia</span>
+          </a>
+        )}
         <label className="city-select">
           <span className="sr-only">{t.city}</span>
           <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></svg>
