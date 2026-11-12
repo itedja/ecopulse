@@ -8,13 +8,23 @@ const INK = '#0E1116', MUTED = '#5B6470', LINE = '#E3E6EA', GROUND = '#F4F5F7', 
 const SANS = 'Inter, system-ui, sans-serif';
 const MONO = '"IBM Plex Mono", ui-monospace, monospace';
 
+// The logo on share images (always the dark tile: it stands out on the light card).
+let logo: HTMLImageElement | null = null;
+function loadLogo(): Promise<void> {
+  if (typeof Image === 'undefined') return Promise.resolve();
+  if (!logo) { logo = new Image(); logo.src = '/logo-dark.svg'; }
+  if (logo.complete) return Promise.resolve();
+  return new Promise((res) => { logo!.onload = () => res(); logo!.onerror = () => res(); setTimeout(res, 2000); });
+}
+
 function base(ctx: CanvasRenderingContext2D, site: string) {
   ctx.fillStyle = GROUND; ctx.fillRect(0, 0, W, H);
   ctx.fillStyle = '#FFFFFF'; roundRect(ctx, 48, 48, W - 96, H - 96, 36); ctx.fill();
   // brand
-  ctx.fillStyle = INK; roundRect(ctx, 96, 104, 26, 26, 6); ctx.fill();
-  ctx.font = `700 34px ${SANS}`; ctx.fillText('EcoPulse', 138, 130);
-  ctx.font = `500 26px ${SANS}`; ctx.fillStyle = MUTED; ctx.fillText('Indonesia', 300, 130);
+  if (logo?.complete && logo.naturalWidth) ctx.drawImage(logo, 92, 94, 44, 44);
+  else { ctx.fillStyle = INK; roundRect(ctx, 96, 104, 26, 26, 6); ctx.fill(); }
+  ctx.fillStyle = INK; ctx.font = `700 34px ${SANS}`; ctx.fillText('EcoPulse', 150, 130);
+  ctx.font = `500 26px ${SANS}`; ctx.fillStyle = MUTED; ctx.fillText('Indonesia', 312, 130);
   // footer
   ctx.strokeStyle = LINE; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(96, H - 170); ctx.lineTo(W - 96, H - 170); ctx.stroke();
   ctx.font = `500 24px ${MONO}`; ctx.fillStyle = MUTED;
@@ -144,6 +154,7 @@ export function drawTodayCard(ctx: CanvasRenderingContext2D, o: {
 // Render → PNG → native share sheet (phones), or download (desktop).
 export async function shareCanvas(draw: (ctx: CanvasRenderingContext2D) => void, filename: string, text: string): Promise<'shared' | 'downloaded' | 'cancelled'> {
   try { await document.fonts?.ready; } catch { /* fonts optional */ }
+  await loadLogo();
   const canvas = document.createElement('canvas');
   canvas.width = W; canvas.height = H;
   draw(canvas.getContext('2d')!);

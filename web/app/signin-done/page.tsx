@@ -44,7 +44,7 @@ export default function SigninDone() {
   const t = TXT[lang];
   return (
     <main className="doc" style={{ textAlign: 'center', paddingTop: 64 }}>
-      <span className="brand-mark" aria-hidden="true" style={{ display: 'inline-block' }} />
+      <span className="brand-mark" aria-hidden="true" style={{ display: 'inline-block', width: 48, height: 48 }} />
       {state === 'working' && <h1 style={{ fontSize: 22 }}>{t.working}</h1>}
       {state === 'done' && <><h1 style={{ fontSize: 22 }}>✓ {t.done}</h1><p>{t.doneSub}</p></>}
       {state === 'error' && <><h1 style={{ fontSize: 22 }}>{t.error}</h1><p>{t.errorSub}</p><p><a href="/app?tab=reports">{t.back}</a></p></>}
