@@ -1,7 +1,7 @@
-name: Air quality + weather (every 30 min)
+name: Air quality + weather (every 15 min)
 on:
   schedule:
-    - cron: '7,37 * * * *'
+    - cron: '7,22,37,52 * * * *'
   workflow_dispatch:
 concurrency:
   group: air-weather

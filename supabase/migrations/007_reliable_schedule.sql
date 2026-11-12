@@ -53,7 +53,7 @@ end $$;
 revoke all on function public.start_github_job(text) from public, anon, authenticated;
 
 -- Schedules (UTC, same times as the workflow files). Re-running this script just updates them.
-select cron.schedule('ecopulse-air-weather',   '7,37 * * * *', $$select public.start_github_job('air-weather.yml')$$);
+select cron.schedule('ecopulse-air-weather',   '7,22,37,52 * * * *', $$select public.start_github_job('air-weather.yml')$$);
 select cron.schedule('ecopulse-news',          '17 * * * *',   $$select public.start_github_job('news.yml')$$);
 select cron.schedule('ecopulse-firms',         '23 */3 * * *', $$select public.start_github_job('firms.yml')$$);
 select cron.schedule('ecopulse-maintenance',   '41 19 * * *',  $$select public.start_github_job('maintenance.yml')$$);
