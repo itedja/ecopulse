@@ -70,3 +70,23 @@ test('Forecast calibration: matches the live reading now, keeps the shape', () =
   // No live reading: unchanged.
   assert.equal(calibrateForecast(raw, null)[0].aqi_forecast, raw[0].aqi_forecast);
 });
+
+import { rankProgress, errorCode, span } from './community';
+
+test('rank progress matches the database thresholds', () => {
+  assert.deepEqual(rankProgress(0), { rank: 'pengamat', next: 'penjaga', toNext: 100, pct: 0 });
+  assert.deepEqual(rankProgress(140), { rank: 'penjaga', next: 'pelindung', toNext: 360, pct: 10 });
+  assert.equal(rankProgress(2500).next, null);
+});
+
+test('database error codes are recognised inside any message', () => {
+  assert.equal(errorCode(new Error('too_far')), 'too_far');
+  assert.equal(errorCode({ message: 'P0001: daily_limit' }), 'daily_limit');
+  assert.equal(errorCode('weird'), 'generic');
+});
+
+test('time spans read naturally', () => {
+  assert.equal(span(30 * 60_000, 'en'), '30 min');
+  assert.equal(span(5 * 3600_000, 'id'), '5 jam');
+  assert.equal(span(3 * 86400_000, 'en'), '3 days');
+});

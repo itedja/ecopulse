@@ -4,9 +4,9 @@ import { useEffect, useRef } from 'react';
 import maplibregl, { type GeoJSONSource, type Map as MLMap } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { category } from '@/lib/aqi';
-import type { CityAq, Hotspot, Wind, Alert, Quake, City, ForestAlert } from '@/lib/supabase';
+import type { CityAq, Hotspot, Wind, Alert, Quake, City, ForestAlert, Report } from '@/lib/supabase';
 
-export type LayerKey = 'air' | 'fire' | 'forest' | 'wind' | 'alerts';
+export type LayerKey = 'air' | 'fire' | 'forest' | 'reports' | 'wind' | 'alerts';
 
 type Props = {
   aq: CityAq[];
@@ -15,6 +15,9 @@ type Props = {
   alerts: Alert[];
   quakes: Quake[];
   forests: ForestAlert[];
+  reports: Report[];
+  selectedReportId: string | null;
+  onSelectReport: (id: string) => void;
   onSelectForest: (id: number) => void;
   selectedForestId: number | null;
   layers: Record<LayerKey, boolean>;
@@ -38,6 +41,28 @@ function squareImage(selected: boolean): ImageData {
   return g.getImageData(0, 0, s, s);
 }
 
+// Community report pin (teal = people's reports). Filled = confirmed, hollow = not confirmed yet,
+// grey = may be resolved. Selected pins get an ink ring.
+const REPORT = '#0F766E';
+function pinImage(style: 'filled' | 'hollow' | 'grey', selected: boolean): ImageData {
+  const s = 56, c = document.createElement('canvas');
+  c.width = c.height = s;
+  const g = c.getContext('2d')!;
+  g.scale(1.4, 1.4);
+  const color = style === 'grey' ? '#94A3B8' : REPORT;
+  g.beginPath(); g.moveTo(20, 37); g.bezierCurveTo(12, 27, 7, 21, 7, 15); g.arc(20, 15, 13, Math.PI, 0); g.bezierCurveTo(33, 21, 28, 27, 20, 37); g.closePath();
+  g.fillStyle = selected ? '#0E1116' : '#FFFFFF'; g.fill();
+  g.beginPath(); g.moveTo(20, 33); g.bezierCurveTo(13.5, 25, 10, 20, 10, 15); g.arc(20, 15, 10, Math.PI, 0); g.bezierCurveTo(30, 20, 26.5, 25, 20, 33); g.closePath();
+  g.fillStyle = color; g.fill();
+  g.beginPath(); g.arc(20, 15, 4, 0, Math.PI * 2);
+  g.fillStyle = '#FFFFFF'; g.fill();
+  if (style === 'hollow') {           // big white centre = "not confirmed yet"
+    g.beginPath(); g.arc(20, 15, 7, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.arc(20, 15, 3, 0, Math.PI * 2); g.fillStyle = color; g.fill();
+  }
+  return g.getImageData(0, 0, s, s);
+}
+
 // Arrow icon drawn on a canvas (points "up"; rotated to where the wind blows TO).
 function arrowImage(): ImageData {
   const s = 32, c = document.createElement('canvas');
@@ -53,16 +78,19 @@ const LAYER_IDS: Record<LayerKey, string[]> = {
   air: ['aq-circle', 'aq-label'],
   fire: ['fire-dot'],
   forest: ['forest-sq'],
+  reports: ['report-pin'],
   wind: ['wind-arrow'],
   alerts: ['alert-fill', 'alert-line', 'quake-ring'],
 };
 
-export default function MapView({ aq, fires, wind, alerts, quakes, forests, onSelectForest, selectedForestId, layers, selected, onSelectCity, lang }: Props) {
+export default function MapView({ aq, fires, wind, alerts, quakes, forests, reports, selectedReportId, onSelectReport, onSelectForest, selectedForestId, layers, selected, onSelectCity, lang }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<MLMap | null>(null);
   const ready = useRef(false);
   const selectRef = useRef(onSelectCity);
   selectRef.current = onSelectCity;
+  const reportRef = useRef(onSelectReport);
+  reportRef.current = onSelectReport;
   const forestRef = useRef(onSelectForest);
   forestRef.current = onSelectForest;
   const langRef = useRef(lang);
@@ -82,7 +110,11 @@ export default function MapView({ aq, fires, wind, alerts, quakes, forests, onSe
       m.addImage('arrow', arrowImage(), { pixelRatio: 2 });
       m.addImage('sq', squareImage(false), { pixelRatio: 2 });
       m.addImage('sq-sel', squareImage(true), { pixelRatio: 2 });
-      for (const id of ['aq', 'fires', 'wind', 'alerts', 'quakes', 'forest']) m.addSource(id, { type: 'geojson', data: fc([]) });
+      for (const st of ['filled', 'hollow', 'grey'] as const) {
+        m.addImage(`pin-${st}`, pinImage(st, false), { pixelRatio: 2 });
+        m.addImage(`pin-${st}-sel`, pinImage(st, true), { pixelRatio: 2 });
+      }
+      for (const id of ['aq', 'fires', 'wind', 'alerts', 'quakes', 'forest', 'reports']) m.addSource(id, { type: 'geojson', data: fc([]) });
 
       m.addLayer({ id: 'alert-fill', type: 'fill', source: 'alerts', paint: { 'fill-color': '#2563EB', 'fill-opacity': 0.12 } });
       m.addLayer({ id: 'alert-line', type: 'line', source: 'alerts', paint: { 'line-color': '#2563EB', 'line-width': 1, 'line-opacity': 0.6 } });
@@ -130,11 +162,24 @@ export default function MapView({ aq, fires, wind, alerts, quakes, forests, onSe
         layout: { 'text-field': ['to-string', ['get', 'aqi']], 'text-size': 11, 'text-font': ['Noto Sans Bold'], 'text-allow-overlap': true },
         paint: { 'text-color': ['get', 'ink'] },
       });
+      m.addLayer({
+        id: 'report-pin', type: 'symbol', source: 'reports',
+        layout: {
+          'icon-image': ['concat', 'pin-', ['get', 'style'], ['case', ['get', 'selected'], '-sel', '']],
+          'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-size': 1, 'symbol-sort-key': ['get', 'order'],
+        },
+      });
 
       m.on('click', 'forest-sq', (e) => {
         const id = e.features?.[0]?.properties?.id;
         if (id != null) forestRef.current(Number(id));
       });
+      m.on('click', 'report-pin', (e) => {
+        const id = e.features?.[0]?.properties?.id;
+        if (id) reportRef.current(String(id));
+      });
+      m.on('mouseenter', 'report-pin', () => (m.getCanvas().style.cursor = 'pointer'));
+      m.on('mouseleave', 'report-pin', () => (m.getCanvas().style.cursor = ''));
       m.on('mouseenter', 'forest-sq', () => (m.getCanvas().style.cursor = 'pointer'));
       m.on('mouseleave', 'forest-sq', () => (m.getCanvas().style.cursor = ''));
       m.on('click', 'aq-circle', (e) => {
@@ -181,11 +226,17 @@ export default function MapView({ aq, fires, wind, alerts, quakes, forests, onSe
         ({ type: 'Feature', geometry: a.area as GeoJSON.Geometry, properties: { headline: (lang === 'id' ? a.headline_id : a.headline_en) ?? a.headline_en ?? '' } }))));
       (m.getSource('forest') as GeoJSONSource)?.setData(fc(forests.map((f) =>
         pt(f.grid_lon, f.grid_lat, { id: f.id, ha: Number(f.area_ha ?? 0), selected: f.id === selectedForestId }))));
+      (m.getSource('reports') as GeoJSONSource)?.setData(fc(reports.map((r) =>
+        pt(r.lon_public, r.lat_public, {
+          id: r.id, selected: r.id === selectedReportId,
+          style: r.status === 'confirmed' ? 'filled' : r.status === 'possibly_resolved' ? 'grey' : 'hollow',
+          order: r.status === 'confirmed' ? 2 : 1,
+        }))));
       (m.getSource('quakes') as GeoJSONSource)?.setData(fc(quakes.map((q) =>
         pt(q.longitude, q.latitude, { mag: q.magnitude, depth: q.depth_km ?? '?', region: q.region_text ?? '', when: when(q.occurred_at) }))));
     };
     if (ready.current) apply(); else m.once('ecopulse:ready', apply);
-  }, [aq, fires, wind, alerts, quakes, forests, selectedForestId, selected, lang]);
+  }, [aq, fires, wind, alerts, quakes, forests, reports, selectedReportId, selectedForestId, selected, lang]);
 
   // Layer toggles.
   useEffect(() => {
@@ -197,6 +248,14 @@ export default function MapView({ aq, fires, wind, alerts, quakes, forests, onSe
     };
     if (ready.current) apply(); else m.once('ecopulse:ready', apply);
   }, [layers]);
+
+  // Fly to a report picked from the list.
+  useEffect(() => {
+    const m = map.current;
+    const r = selectedReportId ? reports.find((x) => x.id === selectedReportId) : null;
+    if (!m || !r) return;
+    m.flyTo({ center: [r.lon_public, r.lat_public], zoom: Math.max(m.getZoom(), 10), duration: 1000 });
+  }, [selectedReportId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fly to the selected city.
   useEffect(() => {

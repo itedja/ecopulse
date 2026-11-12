@@ -1,18 +1,22 @@
 'use client';
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { supabase, supabaseConfigured, type City, type CityAq, type Hotspot, type Forecast, type Wind, type Alert, type Quake, type NewsItem, type ForestAlert, type HelpAction } from '@/lib/supabase';
+import { supabase, supabaseConfigured, type City, type CityAq, type Hotspot, type Forecast, type Wind, type Alert, type Quake, type NewsItem, type ForestAlert, type HelpAction, type Report, type Leader } from '@/lib/supabase';
 import { T, type Lang, cityTimeZone, hhmm } from '@/lib/i18n';
 import { category, advice, cleanestWindow, calibrateForecast, type Category } from '@/lib/aqi';
 import { upwindFires, distanceKm, compass } from '@/lib/smoke';
 import type { LayerKey } from '@/components/MapView';
 import Rankings, { type RankingRow } from '@/components/Rankings';
 import ForestAlertCard from '@/components/ForestAlertCard';
+import ReportCard from '@/components/ReportCard';
+import Community from '@/components/Community';
+import { useAuth } from '@/lib/useAuth';
 import { drawCityCard, shareCanvas } from '@/lib/shareCard';
 
 const MapView = dynamic(() => import('@/components/MapView'), { ssr: false, loading: () => <div className="map map-loading" /> });
 
 const REFRESH_MS = 5 * 60_000;
+type Tab = 'map' | 'rank' | 'reports' | 'news';
 const store = {
   get: (k: string) => { try { return localStorage.getItem(k); } catch { return null; } },
   set: (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* private mode */ } },
@@ -20,14 +24,14 @@ const store = {
 
 type Data = {
   cities: City[]; aq: CityAq[]; fires: Hotspot[]; forecast: Forecast[];
-  wind: Wind[]; alerts: Alert[]; quakes: Quake[]; news: NewsItem[]; rankings: RankingRow[]; forests: ForestAlert[]; help: HelpAction[];
+  wind: Wind[]; alerts: Alert[]; quakes: Quake[]; news: NewsItem[]; rankings: RankingRow[]; forests: ForestAlert[]; help: HelpAction[]; reports: Report[]; leaders: Leader[];
 };
-const EMPTY: Data = { cities: [], aq: [], fires: [], forecast: [], wind: [], alerts: [], quakes: [], news: [], rankings: [], forests: [], help: [] };
+const EMPTY: Data = { cities: [], aq: [], fires: [], forecast: [], wind: [], alerts: [], quakes: [], news: [], rankings: [], forests: [], help: [], reports: [], leaders: [] };
 
 async function loadAll(): Promise<Data> {
   const hour = new Date(); hour.setUTCMinutes(0, 0, 0);
   const now = new Date().toISOString();
-  const [cities, aq, fires, forecast, wind, alerts, quakes, news, rankings, forests, help] = await Promise.all([
+  const [cities, aq, fires, forecast, wind, alerts, quakes, news, rankings, forests, help, reports, leaders] = await Promise.all([
     supabase.from('cities').select('id, slug, name_en, name_id, latitude, longitude, province_id').eq('is_featured', true).order('name_en'),
     supabase.from('city_aq_latest').select('*'),
     supabase.from('hotspots_recent').select('id, latitude, longitude, acquired_at, confidence, frp_mw, province_id').limit(5000),
@@ -40,6 +44,8 @@ async function loadAll(): Promise<Data> {
     supabase.from('province_rankings_7d').select('*'),
     supabase.from('deforestation_alerts_public').select('*').order('area_ha', { ascending: false }).limit(1500),
     supabase.from('help_actions').select('*').eq('is_active', true).order('priority'),
+    supabase.from('reports_public').select('*').order('created_at', { ascending: false }).limit(500),
+    supabase.from('leaderboard_users').select('nickname, points, rank_key, overall_rank').order('overall_rank').limit(20),
   ]);
   type WRow = { wind_speed_kmh: number | null; wind_direction_deg: number | null; weather_points: { latitude: number; longitude: number; city_id: number | null } | null };
   return {
@@ -57,6 +63,8 @@ async function loadAll(): Promise<Data> {
     rankings: (rankings.data ?? []) as RankingRow[],
     forests: (forests.data ?? []) as ForestAlert[],
     help: (help.data ?? []) as HelpAction[],
+    reports: (reports.data ?? []) as Report[],
+    leaders: (leaders.data ?? []) as Leader[],
   };
 }
 
@@ -65,17 +73,26 @@ export default function Home() {
   const [loaded, setLoaded] = useState(false);
   const [lang, setLang] = useState<Lang>('en');
   const [slug, setSlug] = useState('jakarta');
-  const [tab, setTab] = useState<'map' | 'rank' | 'news'>('map');
+  const [tab, setTab] = useState<Tab>('map');
   const [sharing, setSharing] = useState(false);
-  const [layers, setLayers] = useState<Record<LayerKey, boolean>>({ air: true, fire: true, forest: true, wind: true, alerts: true });
+  const [layers, setLayers] = useState<Record<LayerKey, boolean>>({ air: true, fire: true, forest: true, reports: true, wind: true, alerts: true });
   const [forestId, setForestId] = useState<number | null>(null);
+  const [reportId, setReportId] = useState<string | null>(null);
+  const auth = useAuth();
   const [now, setNow] = useState(() => Date.now());
   const t = T[lang];
 
   useEffect(() => {
     const l = store.get('ep.lang'); if (l === 'en' || l === 'id') setLang(l);
     const c = store.get('ep.city'); if (c) setSlug(c);
+    // Coming back from Google sign-in lands on the Report tab.
+    const q = new URLSearchParams(window.location.search);
+    if (q.get('tab') === 'reports') setTab('reports');
   }, []);
+  useEffect(() => {
+    // Tidy the address bar once the sign-in code has been used.
+    if (auth.ready && window.location.search) window.history.replaceState(null, '', window.location.pathname);
+  }, [auth.ready, auth.session]);
 
   const refresh = useCallback(async () => {
     if (!supabaseConfigured) { setLoaded(true); return; }
@@ -105,6 +122,8 @@ export default function Home() {
   const provinceAlerts = data.alerts.filter((a) => city && a.province_ids?.includes(city.province_id));
   const minutesOld = reading ? Math.max(0, Math.round((now - new Date(reading.computed_at).getTime()) / 60_000)) : 0;
 
+  const openReport = (id: string) => { setReportId(id); setForestId(null); setTab('map'); };
+  const afterChange = () => { refresh(); auth.reloadProfile(); };
   const chooseCity = (s: string) => { setSlug(s); store.set('ep.city', s); setTab('map'); };
   const chooseLang = (l: Lang) => { setLang(l); store.set('ep.lang', l); };
   const name = (c: City) => (lang === 'en' ? c.name_en : c.name_id);
@@ -148,7 +167,8 @@ export default function Home() {
       <main className="layout">
         <section className="map-pane">
           <MapView aq={data.aq} fires={data.fires} wind={data.wind} alerts={data.alerts} quakes={data.quakes}
-            forests={data.forests} selectedForestId={forestId} onSelectForest={(id) => { setForestId(id); setTab('map'); }}
+            forests={data.forests} selectedForestId={forestId} onSelectForest={(id) => { setForestId(id); setReportId(null); setTab('map'); }}
+            reports={data.reports} selectedReportId={reportId} onSelectReport={openReport}
             layers={layers} selected={city} onSelectCity={chooseCity} lang={lang} />
           <div className="chips" role="group" aria-label="Map layers">
             {(Object.keys(layers) as LayerKey[]).map((k) => (
@@ -163,11 +183,17 @@ export default function Home() {
           <div className="seg panel-tabs" role="group" aria-label="Sections">
             <button aria-pressed={tab === 'map'} onClick={() => setTab('map')}>{t.tabs.map}</button>
             <button aria-pressed={tab === 'rank'} onClick={() => setTab('rank')}>{t.tabs.rank}</button>
+            <button aria-pressed={tab === 'reports'} onClick={() => setTab('reports')}>{t.tabs.reports}</button>
             <button aria-pressed={tab === 'news'} onClick={() => setTab('news')}>{t.tabs.news}</button>
           </div>
           {(() => {
             const fa = forestId != null ? data.forests.find((f) => f.id === forestId) : undefined;
             return fa ? <ForestAlertCard alert={fa} help={data.help} lang={lang} site={site} onClose={() => setForestId(null)} /> : null;
+          })()}
+          {(() => {
+            const r = reportId ? data.reports.find((x) => x.id === reportId) : undefined;
+            return r ? <ReportCard key={r.id} report={r} help={data.help} lang={lang} userId={auth.userId} now={now}
+              onSignIn={auth.signIn} onClose={() => setReportId(null)} onVoted={afterChange} /> : null;
           })()}
           {!supabaseConfigured && <div className="notice">Missing NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY.</div>}
 
@@ -251,6 +277,12 @@ export default function Home() {
             </section>
           )}
 
+          {tab === 'reports' && (
+            <Community lang={lang} now={now} reports={data.reports} leaders={data.leaders} userId={auth.userId} profile={auth.profile}
+              authReady={auth.ready} near={city ? { lat: city.latitude, lon: city.longitude } : null}
+              onSignIn={auth.signIn} onSignOut={auth.signOut} onChanged={afterChange} onOpenReport={openReport} />
+          )}
+
           {loaded && <Rankings rows={data.rankings} lang={lang} myProvinceId={city?.province_id ?? null} site={site} />}
 
           <section className="card panel-news">
@@ -288,6 +320,10 @@ export default function Home() {
         <button aria-pressed={tab === 'rank'} onClick={() => setTab('rank')}>
           <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M7 16v-4" /><path d="M12 16V8" /><path d="M17 16v-7" /></svg>
           {t.tabs.rank}
+        </button>
+        <button aria-pressed={tab === 'reports'} onClick={() => setTab('reports')}>
+          <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><path d="M12 7v6" /><path d="M9 10h6" /></svg>
+          {t.tabs.reports}
         </button>
         <button aria-pressed={tab === 'news'} onClick={() => setTab('news')}>
           <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2" /><path d="M18 14h-8" /><path d="M15 18h-5" /><path d="M10 6h8v4h-8V6Z" /></svg>

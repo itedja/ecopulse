@@ -1,0 +1,23 @@
+name: Community reports screening (every 15 min)
+on:
+  schedule:
+    - cron: '*/30 * * * *'   # backup; Supabase starts it every 15 min
+  workflow_dispatch:
+concurrency:
+  group: reports
+jobs:
+  screen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run ingest:reports

@@ -1,14 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Public, read-only client. The publishable/anon key is safe in the browser:
-// row-level security only allows reading public data.
+// Browser client. The publishable/anon key is safe in the browser: row-level security only allows
+// reading public data, and signed-in people can only act through checked database functions.
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 export const supabaseConfigured = Boolean(url && key);
 
 export const supabase = createClient(url ?? 'http://localhost', key ?? 'missing', {
-  auth: { persistSession: false },
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'pkce' },
 });
 
 export type City = { id: number; slug: string; name_en: string; name_id: string; latitude: number; longitude: number; province_id: number };
@@ -23,3 +23,13 @@ export type ForestAlert = { id: number; grid_lat: number; grid_lon: number; prov
   first_detected: string; last_detected: string; alert_count: number; area_ha: number | null; fires_within_10km: number | null; summary_en: string | null; summary_id: string | null };
 export type HelpAction = { id: number; action_type: string; issue_kinds: string[]; province_ids: number[]; org_name: string | null; title_en: string; title_id: string;
   description_en: string | null; description_id: string | null; url: string | null; whatsapp: string | null; priority: number };
+export type Report = { id: string; kind: string; title: string; description: string | null; photo_path: string | null;
+  lat_public: number; lon_public: number; province_id: number | null; status: string; verified_by: string | null; confirmations: number;
+  gone_votes: number; confirmed_at: string | null; last_confirmed_at: string | null; expires_at: string; created_at: string;
+  reporter_nickname: string | null; reporter_rank: string | null };
+export type MyReport = { id: string; kind: string; title: string; status: string; screening_note: string | null; confirmations: number; created_at: string };
+export type MyProfile = { nickname: string; points: number; rank_key: string; reports_left_today: number; reports: MyReport[];
+  recent_points: { delta: number; reason: string; created_at: string }[] };
+export type Leader = { nickname: string; points: number; rank_key: string; overall_rank: number };
+
+export const photoUrl = (path: string) => `${url}/storage/v1/object/public/report-photos/${path}`;
