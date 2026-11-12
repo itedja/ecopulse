@@ -22,6 +22,11 @@ button { font: inherit; color: inherit; }
 .topbar { position: sticky; top: 0; z-index: 20; height: var(--top); display: flex; align-items: center; gap: 10px; padding: 0 16px;
   background: var(--surface); border-bottom: 1px solid var(--line); }
 .brand { display: flex; align-items: baseline; gap: 6px; margin-right: auto; white-space: nowrap; text-decoration: none; color: var(--ink); }
+.brand-home { align-items: center; margin-left: -6px; padding: 6px 8px 6px 4px; border-radius: 10px; min-height: 44px; }
+.brand-home:hover { background: var(--ground); color: var(--ink); }
+.brand-home:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.home-arrow { flex-shrink: 0; color: var(--muted); }
+.brand-home:hover .home-arrow { color: var(--ink); }
 .brand-mark { width: 12px; height: 12px; border-radius: 3px; background: var(--ink); align-self: center; }
 .brand-name { font-weight: 700; font-size: 16px; letter-spacing: -0.01em; }
 .brand-sub { font-size: 12px; color: var(--muted); }
