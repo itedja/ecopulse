@@ -123,6 +123,24 @@ export function drawForestCard(ctx: CanvasRenderingContext2D, o: {
   ctx.fillStyle = MUTED; ctx.font = `500 22px ${MONO}`; ctx.fillText('Global Forest Watch integrated alerts · NASA FIRMS', 96, H - 210);
 }
 
+// "Today's worst in Indonesia": three big rows, each with the colour of what it measures.
+export function drawTodayCard(ctx: CanvasRenderingContext2D, o: {
+  title: string; when: string; rows: { label: string; place: string; value: string; color: string }[]; source: string; site: string;
+}) {
+  base(ctx, o.site);
+  ctx.fillStyle = MUTED; ctx.font = `500 30px ${SANS}`; ctx.fillText(o.when, 96, 230);
+  ctx.fillStyle = INK; ctx.font = `700 64px ${SANS}`;
+  let y = wrap(ctx, o.title, 96, 310, W - 192, 74, 2) + 40;
+  for (const r of o.rows) {
+    ctx.fillStyle = r.color; roundRect(ctx, 96, y, W - 192, 8, 4); ctx.fill();
+    ctx.fillStyle = MUTED; ctx.font = `600 26px ${SANS}`; ctx.fillText(r.label, 96, y + 62);
+    ctx.fillStyle = INK; ctx.font = `700 54px ${SANS}`; ctx.fillText(fitText(ctx, r.place, W - 192), 96, y + 130);
+    ctx.fillStyle = r.color; ctx.font = `600 34px ${SANS}`; ctx.fillText(r.value, 96, y + 182);
+    y += 236;
+  }
+  ctx.fillStyle = MUTED; ctx.font = `500 22px ${MONO}`; ctx.fillText(o.source, 96, H - 210);
+}
+
 // Render → PNG → native share sheet (phones), or download (desktop).
 export async function shareCanvas(draw: (ctx: CanvasRenderingContext2D) => void, filename: string, text: string): Promise<'shared' | 'downloaded' | 'cancelled'> {
   try { await document.fonts?.ready; } catch { /* fonts optional */ }
