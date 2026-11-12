@@ -15,7 +15,8 @@ export async function fetchRetry(
         const detail = (await res.text().catch(() => '')).replace(/\s+/g, ' ').slice(0, 200);
         throw new HttpError(res.status, `${res.status} ${res.statusText} from ${redact(url)}${detail ? ` — ${detail}` : ''}`);
       }
-      lastErr = new HttpError(res.status, `${res.status} ${res.statusText} from ${redact(url)}`);
+      const detail = (await res.text().catch(() => '')).replace(/\s+/g, ' ').slice(0, 200);
+      lastErr = new HttpError(res.status, `${res.status} ${res.statusText} from ${redact(url)}${detail ? ` — ${detail}` : ''}`);
     } catch (err) {
       if (err instanceof HttpError && err.status !== 429 && err.status < 500) throw err;
       lastErr = err;

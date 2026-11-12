@@ -101,7 +101,7 @@ async function gfwQuery<T>(apiKey: string, sql: string, geometry: unknown): Prom
     method: 'POST',
     headers: { 'x-api-key': apiKey, 'content-type': 'application/json' },
     body: JSON.stringify({ sql, geometry }),
-  }, { timeoutMs: 120_000, retries: 2 }).catch(async (err) => { throw err; });
+  }, { timeoutMs: 90_000, retries: 1 });
   const json = (await res.json()) as { data?: T[]; status?: string; message?: string };
   if (!Array.isArray(json.data)) throw new Error(`GFW query failed: ${json.message ?? json.status ?? 'no data'}`);
   return json.data;
@@ -198,45 +198,94 @@ async function main() {
     const end = daysAgo(0), start7 = daysAgo(7), startC = daysAgo(CLUSTER_DAYS);
     let clusters = 0, provincesOk = 0;
 
-    for (const p of outlines as { id: number; slug: string; name_en: string; geojson: unknown }[]) {
-      try {
-        // (a) 7-day total. GFW's SQL has no IN (...), so ask once per confidence level and add them up.
+    // GFW's query engine is picky and its errors aren't always clear (422 for some things, 500 for others).
+    // So each question has a "ladder": try the richest form first, step down to simpler forms, and remember
+    // the first one that works for the rest of the run. The last rung is the exact query that already passed
+    // the key check, so the totals always have something that works.
+    type Totals = { alerts: number; area: number | null };
+    const d7 = `gfw_integrated_alerts__date >= '${start7}'`;
+    const totalLadder: { name: string; run: (g: unknown) => Promise<Totals> }[] = [
+      { name: 'count+area per confidence', run: async (g) => {
         let alerts = 0, area = 0;
         for (const level of ['high', 'highest']) {
-          const where = `WHERE gfw_integrated_alerts__date >= '${start7}' AND gfw_integrated_alerts__confidence = '${level}'`;
-          let row: { alert_count?: number | null; area_ha?: number | null } | undefined;
-          try {
-            [row] = await gfwQuery(apiKey, `SELECT COUNT(*) AS alert_count, SUM(area__ha) AS area_ha FROM results ${where}`, p.geojson);
-          } catch (err) {
-            if (!/422|unsupported/i.test(String(err))) throw err;
-            [row] = await gfwQuery(apiKey, `SELECT COUNT(*) AS alert_count FROM results ${where}`, p.geojson);   // area not supported: count only
-          }
-          alerts += Number(row?.alert_count ?? 0);
-          area += Number(row?.area_ha ?? 0);
-          await sleep(500);
+          const [r] = await gfwQuery<{ alert_count?: number; area_ha?: number }>(apiKey,
+            `SELECT COUNT(*) AS alert_count, SUM(area__ha) AS area_ha FROM results WHERE ${d7} AND gfw_integrated_alerts__confidence = '${level}'`, g);
+          alerts += Number(r?.alert_count ?? 0); area += Number(r?.area_ha ?? 0);
         }
-        await upsertChunked('deforestation_province_7d', [{
-          province_id: p.id, alerts_7d: alerts, area_ha_7d: area ? Math.round(area * 100) / 100 : null,
-          window_start: start7, window_end: end, computed_at: new Date().toISOString(),
-        }], 'province_id');
+        return { alerts, area };
+      } },
+      { name: 'count per confidence', run: async (g) => {
+        let alerts = 0;
+        for (const level of ['high', 'highest']) {
+          const [r] = await gfwQuery<{ alert_count?: number }>(apiKey,
+            `SELECT COUNT(*) AS alert_count FROM results WHERE ${d7} AND gfw_integrated_alerts__confidence = '${level}'`, g);
+          alerts += Number(r?.alert_count ?? 0);
+        }
+        return { alerts, area: null };
+      } },
+      { name: 'count grouped by confidence', run: async (g) => {
+        const rows = await gfwQuery<{ gfw_integrated_alerts__confidence?: string; alert_count?: number }>(apiKey,
+          `SELECT gfw_integrated_alerts__confidence, COUNT(*) AS alert_count FROM results WHERE ${d7} GROUP BY gfw_integrated_alerts__confidence`, g);
+        const alerts = rows.filter((r) => r.gfw_integrated_alerts__confidence === 'high' || r.gfw_integrated_alerts__confidence === 'highest')
+          .reduce((n, r) => n + Number(r.alert_count ?? 0), 0);
+        return { alerts, area: null };
+      } },
+      { name: 'count, all confidence levels', run: async (g) => {
+        const [r] = await gfwQuery<{ n?: number }>(apiKey, `SELECT COUNT(*) AS n FROM results WHERE ${d7}`, g);
+        return { alerts: Number(r?.n ?? 0), area: null };
+      } },
+    ];
+    const dC = `gfw_integrated_alerts__date >= '${startC}'`;
+    const pointLadder: { name: string; run: (g: unknown) => Promise<AlertPoint[]> }[] = [
+      { name: 'highest points + area', run: (g) => gfwQuery<AlertPoint>(apiKey,
+        `SELECT latitude, longitude, gfw_integrated_alerts__date, area__ha FROM results WHERE ${dC} AND gfw_integrated_alerts__confidence = 'highest'`, g) },
+      { name: 'highest points', run: (g) => gfwQuery<AlertPoint>(apiKey,
+        `SELECT latitude, longitude, gfw_integrated_alerts__date FROM results WHERE ${dC} AND gfw_integrated_alerts__confidence = 'highest'`, g) },
+      { name: 'points filtered here', run: async (g) => (await gfwQuery<AlertPoint & { gfw_integrated_alerts__confidence?: string }>(apiKey,
+        `SELECT latitude, longitude, gfw_integrated_alerts__date, gfw_integrated_alerts__confidence FROM results WHERE ${dC}`, g))
+        .filter((r) => r.gfw_integrated_alerts__confidence === 'highest') },
+    ];
+    let totalRung = 0, pointRung = 0, pointsBroken = false, pointsWorked = false;
+    const short = (e: unknown) => String(e instanceof Error ? e.message : e).replace(/https?:\/\/\S+/g, '').slice(0, 160);
 
-        // (b) points → ~1 km clusters
-        const whereC = `WHERE gfw_integrated_alerts__date >= '${startC}' AND gfw_integrated_alerts__confidence = 'highest'`;
-        let pts: AlertPoint[];
-        try {
-          pts = await gfwQuery<AlertPoint>(apiKey, `SELECT latitude, longitude, gfw_integrated_alerts__date, area__ha FROM results ${whereC}`, p.geojson);
-        } catch (err) {
-          if (!/422|unsupported/i.test(String(err))) throw err;
-          pts = await gfwQuery<AlertPoint>(apiKey, `SELECT latitude, longitude, gfw_integrated_alerts__date FROM results ${whereC}`, p.geojson);
+    for (const p of outlines as { id: number; slug: string; name_en: string; geojson: unknown }[]) {
+      // (a) 7-day totals
+      let totals: Totals | null = null;
+      while (totalRung < totalLadder.length) {
+        try { totals = await totalLadder[totalRung].run(p.geojson); break; }
+        catch (err) {
+          if (provincesOk > 0) { warnings.push(`${p.slug} totals: ${short(err)}`); break; }   // the form worked before: just this province
+          console.log(`  totals form "${totalLadder[totalRung].name}" failed (${short(err)}); trying a simpler one`);
+          totalRung++;
         }
-        const rows = clusterPoints(pts).map((c) => ({ ...c, province_id: p.id, updated_at: new Date().toISOString() }));
-        clusters += await upsertChunked('deforestation_clusters', rows, 'grid_lat,grid_lon');
-        provincesOk++;
-        await sleep(800);
-      } catch (err) {
-        warnings.push(`${p.slug}: ${err instanceof Error ? err.message : err}`);
       }
+      if (totalRung >= totalLadder.length) throw new Error(`GFW rejected every form of the totals question. Last province tried: ${p.slug}`);
+      if (!totals) { console.log(`  ${p.slug}: skipped`); continue; }
+      await upsertChunked('deforestation_province_7d', [{
+        province_id: p.id, alerts_7d: totals.alerts, area_ha_7d: totals.area ? Math.round(totals.area * 100) / 100 : null,
+        window_start: start7, window_end: end, computed_at: new Date().toISOString(),
+      }], 'province_id');
+      provincesOk++;
+
+      // (b) points → ~1 km squares on the map. If GFW can't do this, the rankings still work without it.
+      let squares = 0;
+      while (!pointsBroken) {
+        try {
+          const pts = await pointLadder[pointRung].run(p.geojson);
+          const rows = clusterPoints(pts).map((c) => ({ ...c, province_id: p.id, updated_at: new Date().toISOString() }));
+          squares = rows.length; pointsWorked = true;
+          clusters += await upsertChunked('deforestation_clusters', rows, 'grid_lat,grid_lon');
+          break;
+        } catch (err) {
+          if (pointsWorked) { warnings.push(`${p.slug} squares: ${short(err)}`); break; }
+          console.log(`  squares form "${pointLadder[pointRung].name}" failed (${short(err)})`);
+          if (++pointRung >= pointLadder.length) { pointsBroken = true; warnings.push('map squares unavailable this run'); }
+        }
+      }
+      console.log(`  ${p.slug}: ${totals.alerts} alerts this week${pointsBroken ? '' : `, ${squares} map squares`}`);
+      await sleep(500);
     }
+    console.log(`  used: totals = "${totalLadder[totalRung].name}", squares = ${pointsBroken ? 'none' : `"${pointLadder[pointRung].name}"`}`);
     if (provincesOk === 0) throw new Error(`All provinces failed. First error: ${warnings[0]}`);
 
     const { error: ctxErr } = await db().rpc('refresh_cluster_context');
