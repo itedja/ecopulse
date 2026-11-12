@@ -106,6 +106,9 @@ export default function MapView({ aq, stations, fires, wind, alerts, quakes, for
   forestRef.current = onSelectForest;
   const langRef = useRef(lang);
   langRef.current = lang;
+  // The open map popup, so its text can switch language without closing it.
+  const openPopup = useRef<{ popup: maplibregl.Popup; render: () => void } | null>(null);
+  useEffect(() => { openPopup.current?.render(); }, [lang]);
 
   // Create the map once.
   useEffect(() => {
@@ -219,14 +222,18 @@ export default function MapView({ aq, stations, fires, wind, alerts, quakes, for
         m.on('click', layer, (e) => {
           const f = e.features?.[0];
           if (!f) return;
-          new maplibregl.Popup({ closeButton: false, maxWidth: '240px' }).setLngLat(e.lngLat).setHTML(html(f.properties as Record<string, unknown>)).addTo(m);
+          const props = f.properties as Record<string, unknown>;
+          openPopup.current?.popup.remove();
+          const popup = new maplibregl.Popup({ closeButton: false, maxWidth: '240px' }).setLngLat(e.lngLat).setHTML(html(props)).addTo(m);
+          openPopup.current = { popup, render: () => popup.setHTML(html(props)) };
+          popup.on('close', () => { if (openPopup.current?.popup === popup) openPopup.current = null; });
         });
         m.on('mouseenter', layer, () => (m.getCanvas().style.cursor = 'pointer'));
         m.on('mouseleave', layer, () => (m.getCanvas().style.cursor = ''));
       };
       const esc = (s: unknown) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!);
       popup('st-circle', (p) => `<b>${esc(p.name) || (langRef.current === 'en' ? 'Monitoring station' : 'Stasiun pemantau')}</b><br>AQI ${esc(p.aqi)}${p.pm25 != null && p.pm25 !== '' ? ` · PM2.5 ${esc(p.pm25)} µg/m³` : ''}<br>${esc(p.when)}<br><span class="pop-src">${esc(p.src)}</span>`);
-      popup('fire-dot', (p) => `<b>${langRef.current === 'en' ? 'Fire hotspot' : 'Titik api'}</b><br>${esc(p.when)}<br>${langRef.current === 'en' ? 'Confidence' : 'Keyakinan'}: ${esc(p.confidence)}<br><span class="pop-src">NASA FIRMS</span>`);
+      popup('fire-dot', (p) => `<b>${langRef.current === 'en' ? 'Fire hotspot' : 'Titik api'}</b><br>${esc(p.when)}<br>${langRef.current === 'en' ? 'Confidence' : 'Keyakinan'}: ${esc(langRef.current === 'en' ? p.confidence : ({ high: 'tinggi', nominal: 'sedang', low: 'rendah' } as Record<string, string>)[String(p.confidence)] ?? p.confidence)}<br><span class="pop-src">NASA FIRMS</span>`);
       popup('quake-ring', (p) => `<b>M${esc(p.mag)}</b> · ${esc(p.depth)} km<br>${esc(p.region)}<br>${esc(p.when)}<br><span class="pop-src">BMKG</span>`);
       popup('alert-fill', (p) => `<b>${esc(p.headline)}</b><br><span class="pop-src">BMKG</span>`);
       m.on('mouseenter', 'aq-circle', () => (m.getCanvas().style.cursor = 'pointer'));
