@@ -1,4 +1,4 @@
-// Community report screening. Runs every 15 minutes.
+// Community report screening. Runs every 5 minutes.
 //   1. New reports wait as 'pending' (not public). Claude Haiku checks the text and the photo.
 //   2. Approved: the photo moves from the private upload bucket to the public bucket, and the report
 //      becomes public as "not confirmed yet". Then the satellite check runs (fires / forest alerts).

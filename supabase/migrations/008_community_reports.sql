@@ -3,7 +3,7 @@
 -- How it works
 --   1. A signed-in person submits a report (kind, title, optional text and photo, phone GPS).
 --      It starts as 'pending' and is NOT public yet. Public location is rounded to ~1 km.
---   2. The screening job (every 15 min) asks Claude Haiku to check the text and photo.
+--   2. The screening job (every 5 min) asks Claude Haiku to check the text and photo.
 --      Approved → 'unverified' (public, marked "not confirmed yet"). Rejected → hidden, with a reason
 --      the reporter can see.
 --   3. Satellites can confirm it: a fire report with a NASA hotspot within 5 km, or a forest report
@@ -346,5 +346,5 @@ grant  execute on function submit_report(issue_kind, text, text, double precisio
                            vote_report(uuid, vote_kind, double precision, double precision),
                            set_nickname(text), my_profile() to authenticated, service_role;
 
--- The screening job: start it every 15 minutes (uses the scheduler from 007).
-select cron.schedule('ecopulse-reports', '*/15 * * * *', $$select public.start_github_job('reports.yml')$$);
+-- The screening job: start it every 5 minutes (uses the scheduler from 007).
+select cron.schedule('ecopulse-reports', '*/5 * * * *', $$select public.start_github_job('reports.yml')$$);

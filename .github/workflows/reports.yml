@@ -1,7 +1,7 @@
-name: Community reports screening (every 15 min)
+name: Community reports screening (every 5 min)
 on:
   schedule:
-    - cron: '*/30 * * * *'   # backup; Supabase starts it every 15 min
+    - cron: '*/30 * * * *'   # backup; Supabase starts it every 5 min
   workflow_dispatch:
 concurrency:
   group: reports
