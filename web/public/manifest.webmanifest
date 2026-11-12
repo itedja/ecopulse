@@ -1,7 +1,7 @@
 {
   "name": "EcoPulse Indonesia",
   "short_name": "EcoPulse",
-  "description": "Live air quality, fires and environmental news across Indonesia.",
+  "description": "Kualitas udara, titik api, kehilangan hutan, dan laporan warga di seluruh Indonesia.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#F4F5F7",

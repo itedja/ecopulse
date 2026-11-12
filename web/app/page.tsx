@@ -72,7 +72,7 @@ async function loadAll(): Promise<Data> {
 export default function Home() {
   const [data, setData] = useState<Data>(EMPTY);
   const [loaded, setLoaded] = useState(false);
-  const [lang, setLang] = useState<Lang>('en');
+  const [lang, setLang] = useState<Lang>('id');   // Indonesian by default; a saved choice wins
   const [slug, setSlug] = useState('jakarta');
   const [tab, setTab] = useState<Tab>('map');
   const [sharing, setSharing] = useState(false);
@@ -131,6 +131,7 @@ export default function Home() {
   const afterChange = () => { refresh(); auth.reloadProfile(); };
   const chooseCity = (s: string) => { setSlug(s); store.set('ep.city', s); setTab('map'); };
   const chooseLang = (l: Lang) => { setLang(l); store.set('ep.lang', l); };
+  useEffect(() => { document.documentElement.lang = lang; }, [lang]);
   const name = (c: City) => (lang === 'en' ? c.name_en : c.name_id);
   const site = typeof window === 'undefined' ? 'ecopulse' : window.location.host;
 
