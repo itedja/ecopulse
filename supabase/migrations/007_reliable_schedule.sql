@@ -15,8 +15,8 @@ declare
   tok text := 'PASTE_TOKEN_HERE';
   sid uuid;
 begin
-  if tok = 'PASTE_TOKEN_HERE' or length(tok) < 20 then
-    raise exception 'Paste your GitHub token into the script first (replace PASTE_TOKEN_HERE).';
+  if tok not like 'github_pat_%' and tok not like 'ghp_%' then
+    raise exception 'That is not a GitHub token. It should start with github_pat_';
   end if;
   select id into sid from vault.secrets where name = 'github_dispatch_token';
   if sid is null then
