@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { clusterPoints, summaryPrompt, keyNeedsRenewal } from './deforestation.ts';
+import { clusterPoints, summaryPrompt, keyNeedsRenewal, latestWeek } from './deforestation.ts';
 
 test('Alert points group onto a ~1 km grid with first/last dates and area', () => {
   const c = clusterPoints([
@@ -26,4 +26,9 @@ test('GFW key: create when missing, keep when valid, renew 14 days before expiry
   assert.equal(keyNeedsRenewal({ api_key: 'k', expires_on: '2027-11-12T00:00:00Z' }, now), false);
   assert.equal(keyNeedsRenewal({ api_key: 'k', expires_on: '2026-11-20T00:00:00Z' }, now), true);
   assert.equal(keyNeedsRenewal({ api_key: 'k' }, now), false);
+});
+
+test('latestWeek uses the newest published week, not today', () => {
+  assert.deepEqual(latestWeek(['2026-10-20', '2026-10-28', '2026-10-25', 'bad']), { start: '2026-10-22', end: '2026-10-28' });
+  assert.equal(latestWeek([]), null);
 });

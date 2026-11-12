@@ -1,6 +1,6 @@
 // Global Forest Watch Integrated Deforestation Alerts → EcoPulse. Runs daily.
 //   1. Logs in to the GFW Data API with the account email + password (GitHub Secrets).
-//   2. For each province outline: total high/highest-confidence alerts in the last 7 days.
+//   2. Weekly totals per province: the newest 7 days of published "highest"-confidence alerts.
 //   3. For each province outline: "highest"-confidence alert points (last 30 days), grouped on a
 //      ~1 km grid into clusters (the map's forest-loss squares). Locations never get finer than ~1 km.
 //   4. Asks Claude Haiku for a short neutral "what's happening" summary for the biggest new clusters.
@@ -108,6 +108,15 @@ async function gfwQuery<T>(apiKey: string, sql: string, geometry: unknown): Prom
 }
 
 // ---- pure helpers (tested) ----
+// The newest 7-day window that has data: [latest - 6 days, latest].
+export function latestWeek(dates: string[]): { start: string; end: string } | null {
+  const valid = dates.filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d));
+  if (!valid.length) return null;
+  const end = valid.reduce((m, d) => (d > m ? d : m));
+  const start = isoDate(new Date(Date.parse(`${end}T00:00:00Z`) - 6 * 86400_000));
+  return { start, end };
+}
+
 export type AlertPoint = { latitude: number; longitude: number; gfw_integrated_alerts__date: string; area__ha?: number | null };
 
 export function clusterPoints(points: AlertPoint[]) {
@@ -195,97 +204,56 @@ async function main() {
     const apiKey = await workingApiKey(token, (key) => gfwQuery(key,
       `SELECT COUNT(*) AS n FROM results WHERE gfw_integrated_alerts__date >= '${daysAgo(1)}'`, first.geojson));
 
-    const end = daysAgo(0), start7 = daysAgo(7), startC = daysAgo(CLUSTER_DAYS);
+    const startC = daysAgo(CLUSTER_DAYS);
     let clusters = 0, provincesOk = 0;
 
-    // GFW's query engine is picky and its errors aren't always clear (422 for some things, 500 for others).
-    // So each question has a "ladder": try the richest form first, step down to simpler forms, and remember
-    // the first one that works for the rest of the run. The last rung is the exact query that already passed
-    // the key check, so the totals always have something that works.
-    type Totals = { alerts: number; area: number | null };
-    const d7 = `gfw_integrated_alerts__date >= '${start7}'`;
-    const totalLadder: { name: string; run: (g: unknown) => Promise<Totals> }[] = [
-      { name: 'count+area per confidence', run: async (g) => {
-        let alerts = 0, area = 0;
-        for (const level of ['high', 'highest']) {
-          const [r] = await gfwQuery<{ alert_count?: number; area_ha?: number }>(apiKey,
-            `SELECT COUNT(*) AS alert_count, SUM(area__ha) AS area_ha FROM results WHERE ${d7} AND gfw_integrated_alerts__confidence = '${level}'`, g);
-          alerts += Number(r?.alert_count ?? 0); area += Number(r?.area_ha ?? 0);
-        }
-        return { alerts, area };
-      } },
-      { name: 'count per confidence', run: async (g) => {
-        let alerts = 0;
-        for (const level of ['high', 'highest']) {
-          const [r] = await gfwQuery<{ alert_count?: number }>(apiKey,
-            `SELECT COUNT(*) AS alert_count FROM results WHERE ${d7} AND gfw_integrated_alerts__confidence = '${level}'`, g);
-          alerts += Number(r?.alert_count ?? 0);
-        }
-        return { alerts, area: null };
-      } },
-      { name: 'count grouped by confidence', run: async (g) => {
-        const rows = await gfwQuery<{ gfw_integrated_alerts__confidence?: string; alert_count?: number }>(apiKey,
-          `SELECT gfw_integrated_alerts__confidence, COUNT(*) AS alert_count FROM results WHERE ${d7} GROUP BY gfw_integrated_alerts__confidence`, g);
-        const alerts = rows.filter((r) => r.gfw_integrated_alerts__confidence === 'high' || r.gfw_integrated_alerts__confidence === 'highest')
-          .reduce((n, r) => n + Number(r.alert_count ?? 0), 0);
-        return { alerts, area: null };
-      } },
-      { name: 'count, all confidence levels', run: async (g) => {
-        const [r] = await gfwQuery<{ n?: number }>(apiKey, `SELECT COUNT(*) AS n FROM results WHERE ${d7}`, g);
-        return { alerts: Number(r?.n ?? 0), area: null };
-      } },
-    ];
+    // GFW's query engine is picky and its errors aren't always clear, so the map-square question has a
+    // "ladder": try the richest form first, step down to simpler ones, and keep the first that works.
+    // (Run on 2026-11-12: area__ha is NOT supported for point rows; "highest points" works.)
     const dC = `gfw_integrated_alerts__date >= '${startC}'`;
     const pointLadder: { name: string; run: (g: unknown) => Promise<AlertPoint[]> }[] = [
-      { name: 'highest points + area', run: (g) => gfwQuery<AlertPoint>(apiKey,
-        `SELECT latitude, longitude, gfw_integrated_alerts__date, area__ha FROM results WHERE ${dC} AND gfw_integrated_alerts__confidence = 'highest'`, g) },
       { name: 'highest points', run: (g) => gfwQuery<AlertPoint>(apiKey,
         `SELECT latitude, longitude, gfw_integrated_alerts__date FROM results WHERE ${dC} AND gfw_integrated_alerts__confidence = 'highest'`, g) },
       { name: 'points filtered here', run: async (g) => (await gfwQuery<AlertPoint & { gfw_integrated_alerts__confidence?: string }>(apiKey,
         `SELECT latitude, longitude, gfw_integrated_alerts__date, gfw_integrated_alerts__confidence FROM results WHERE ${dC}`, g))
         .filter((r) => r.gfw_integrated_alerts__confidence === 'highest') },
     ];
-    let totalRung = 0, pointRung = 0, pointsBroken = false, pointsWorked = false;
+    let pointRung = 0, pointsWorked = false;
     const short = (e: unknown) => String(e instanceof Error ? e.message : e).replace(/https?:\/\/\S+/g, '').slice(0, 160);
+    const datesByProvince = new Map<number, string[]>();
 
     for (const p of outlines as { id: number; slug: string; name_en: string; geojson: unknown }[]) {
-      // (a) 7-day totals
-      let totals: Totals | null = null;
-      while (totalRung < totalLadder.length) {
-        try { totals = await totalLadder[totalRung].run(p.geojson); break; }
-        catch (err) {
-          if (provincesOk > 0) { warnings.push(`${p.slug} totals: ${short(err)}`); break; }   // the form worked before: just this province
-          console.log(`  totals form "${totalLadder[totalRung].name}" failed (${short(err)}); trying a simpler one`);
-          totalRung++;
-        }
-      }
-      if (totalRung >= totalLadder.length) throw new Error(`GFW rejected every form of the totals question. Last province tried: ${p.slug}`);
-      if (!totals) { console.log(`  ${p.slug}: skipped`); continue; }
-      await upsertChunked('deforestation_province_7d', [{
-        province_id: p.id, alerts_7d: totals.alerts, area_ha_7d: totals.area ? Math.round(totals.area * 100) / 100 : null,
-        window_start: start7, window_end: end, computed_at: new Date().toISOString(),
-      }], 'province_id');
-      provincesOk++;
-
-      // (b) points → ~1 km squares on the map. If GFW can't do this, the rankings still work without it.
-      let squares = 0;
-      while (!pointsBroken) {
+      while (pointRung < pointLadder.length) {
         try {
           const pts = await pointLadder[pointRung].run(p.geojson);
+          pointsWorked = true;
           const rows = clusterPoints(pts).map((c) => ({ ...c, province_id: p.id, updated_at: new Date().toISOString() }));
-          squares = rows.length; pointsWorked = true;
           clusters += await upsertChunked('deforestation_clusters', rows, 'grid_lat,grid_lon');
+          datesByProvince.set(p.id, pts.map((x) => String(x.gfw_integrated_alerts__date).slice(0, 10)));
+          provincesOk++;
+          console.log(`  ${p.slug}: ${pts.length} alerts in ${CLUSTER_DAYS} days, ${rows.length} map squares`);
           break;
         } catch (err) {
-          if (pointsWorked) { warnings.push(`${p.slug} squares: ${short(err)}`); break; }
-          console.log(`  squares form "${pointLadder[pointRung].name}" failed (${short(err)})`);
-          if (++pointRung >= pointLadder.length) { pointsBroken = true; warnings.push('map squares unavailable this run'); }
+          if (pointsWorked) { warnings.push(`${p.slug}: ${short(err)}`); console.log(`  ${p.slug}: skipped (${short(err)})`); break; }
+          console.log(`  form "${pointLadder[pointRung].name}" failed (${short(err)}); trying a simpler one`);
+          pointRung++;
         }
       }
-      console.log(`  ${p.slug}: ${totals.alerts} alerts this week${pointsBroken ? '' : `, ${squares} map squares`}`);
+      if (pointRung >= pointLadder.length) throw new Error(`GFW rejected every form of the question. Last province tried: ${p.slug}`);
       await sleep(500);
     }
-    console.log(`  used: totals = "${totalLadder[totalRung].name}", squares = ${pointsBroken ? 'none' : `"${pointLadder[pointRung].name}"`}`);
+
+    // Weekly totals = the newest 7 days GFW has published. Alerts appear 1–3 weeks after detection,
+    // so "the last 7 calendar days" is almost always empty; the site shows the real dates instead.
+    const week = latestWeek([...datesByProvince.values()].flat());
+    if (week) {
+      const totals = [...datesByProvince].map(([province_id, dates]) => ({
+        province_id, alerts_7d: dates.filter((d) => d >= week.start && d <= week.end).length, area_ha_7d: null,
+        window_start: week.start, window_end: week.end, computed_at: new Date().toISOString(),
+      }));
+      await upsertChunked('deforestation_province_7d', totals, 'province_id');
+      console.log(`  weekly totals for ${week.start} to ${week.end} (newest published data)`);
+    }
     if (provincesOk === 0) throw new Error(`All provinces failed. First error: ${warnings[0]}`);
 
     const { error: ctxErr } = await db().rpc('refresh_cluster_context');

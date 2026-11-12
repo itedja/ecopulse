@@ -37,7 +37,7 @@ export default function Rankings({ rows, lang, myProvinceId, site }: Props) {
   const fmtHa = (ha: number | null) => (ha == null ? '0' : ha >= 10 ? Math.round(ha).toLocaleString() : ha.toFixed(1));
   const subOf = (r: RankingRow) => metric === 'fire' ? t.rank.highConf(r.high_conf_7d)
     : metric === 'air' ? `${r.pm25_7d} µg/m³ · ${t.rank.monitors(r.air_stations)}`
-    : t.rank.forestSub(fmtHa(r.forest_ha_7d));
+    : r.forest_ha_7d != null ? t.rank.forestSub(fmtHa(r.forest_ha_7d)) : t.rank.forestCount;
   const totalFires = rows.reduce((s, r) => s + r.fires_7d, 0);
 
   const range = useMemo(() => {
@@ -45,6 +45,8 @@ export default function Rankings({ rows, lang, myProvinceId, site }: Props) {
     const sinceIso = metric === 'fire' ? rows[0]?.fires_since : metric === 'air' ? rows[0]?.air_since : rows[0]?.forest_since;
     const weekAgo = new Date(Date.now() - 6 * 86400_000);
     const since = sinceIso ? new Date(sinceIso) : null;
+    // Forest alerts are published 1–3 weeks late, so show the real week they cover.
+    if (metric === 'forest' && since) return `${f(since)} – ${f(new Date(since.getTime() + 6 * 86400_000))}`;
     if (since && since > weekAgo) return t.rank.since(f(since));
     return `${f(weekAgo)} – ${f(new Date())}`;
   }, [lang, metric, rows, t]);
