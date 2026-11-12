@@ -239,3 +239,11 @@ button { font: inherit; color: inherit; }
 .mine-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .mine-title { font-size: 15px; font-weight: 600; line-height: 1.3; }
 @media (max-width: 380px) { .kind-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Plain document pages (privacy) */
+.doc { max-width: 680px; margin: 0 auto; padding: 32px 20px 64px; font-size: 15px; line-height: 1.65; }
+.doc h1 { font-size: 28px; margin: 16px 0 4px; letter-spacing: -0.02em; }
+.doc h2 { font-size: 17px; margin: 28px 0 6px; }
+.doc ul { padding-left: 20px; }
+.doc li + li { margin-top: 8px; }
+.doc-back { font-size: 14px; color: var(--muted); text-decoration: none; }

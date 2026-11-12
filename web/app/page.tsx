@@ -311,7 +311,7 @@ export default function Home() {
           </section>
 
           <footer className="credits">
-            <p>{t.disclaimer}</p>
+            <p>{t.disclaimer} <a href="/privacy">{lang === 'en' ? 'Privacy' : 'Privasi'}</a></p>
             <p>Data: <a href="https://waqi.info" target="_blank" rel="noopener noreferrer">World Air Quality Index Project</a> &amp; originating EPAs · <a href="https://openaq.org" target="_blank" rel="noopener noreferrer">OpenAQ</a> · NASA FIRMS · <a href="https://open-meteo.com" target="_blank" rel="noopener noreferrer">Open-Meteo</a> (CC BY 4.0) · BMKG · Province borders CC BY 4.0 (denyherianto). Map © OpenStreetMap contributors · OpenFreeMap.</p>
           </footer>
         </aside>
