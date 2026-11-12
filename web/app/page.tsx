@@ -15,7 +15,8 @@ import { drawCityCard, shareCanvas } from '@/lib/shareCard';
 
 const MapView = dynamic(() => import('@/components/MapView'), { ssr: false, loading: () => <div className="map map-loading" /> });
 
-const REFRESH_MS = 5 * 60_000;
+const REFRESH_MS = 2 * 60_000;   // fetch fresh data every 2 minutes
+const TICK_MS = 30_000;          // update "x min ago" labels every 30 seconds
 type Tab = 'map' | 'rank' | 'reports' | 'news';
 const store = {
   get: (k: string) => { try { return localStorage.getItem(k); } catch { return null; } },
@@ -101,7 +102,11 @@ export default function Home() {
   useEffect(() => {
     refresh();
     const id = setInterval(refresh, REFRESH_MS);
-    return () => clearInterval(id);
+    const tick = setInterval(() => setNow(Date.now()), TICK_MS);
+    // Phones pause timers in background tabs: catch up the moment the page is visible again.
+    const onShow = () => { if (document.visibilityState === 'visible') refresh(); };
+    document.addEventListener('visibilitychange', onShow);
+    return () => { clearInterval(id); clearInterval(tick); document.removeEventListener('visibilitychange', onShow); };
   }, [refresh]);
 
   const city = data.cities.find((c) => c.slug === slug) ?? data.cities[0] ?? null;
