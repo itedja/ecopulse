@@ -3,6 +3,7 @@ import './globals.css';
 import RegisterSW from '@/components/RegisterSW';
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://www.ecopulseindonesia.com'),
   title: 'EcoPulse Indonesia: udara, api, dan hutan secara langsung',
   description: 'Kualitas udara, titik api, kehilangan hutan, peringatan cuaca, dan laporan warga di seluruh Indonesia. Gratis dan otomatis.',
   manifest: '/manifest.webmanifest',
