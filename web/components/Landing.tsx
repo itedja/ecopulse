@@ -138,7 +138,7 @@ export default function Landing() {
       <section className="lp-wrap">
         <h2 className="lp-eyebrow">{t.nowTitle}</h2>
         <div className="lp-stats">
-          <div className="lp-stat"><b style={{ color: '#C2410C' }}>{num(live?.fires7d)}</b><span>{t.fires}</span></div>
+          <div className="lp-stat"><b style={{ color: '#C2410C' }}>{num(live?.fires7d)}</b><span>{live?.firesSince ? t.firesSince(new Date(live.firesSince).toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-GB', { day: 'numeric', month: 'short', timeZone: 'Asia/Jakarta' })) : t.fires}</span></div>
           <div className="lp-stat"><b>{live?.worstAir ? live.worstAir.aqi : '–'}</b>
             <span>{t.air(place(live?.worstAir))}{airCat && <> · <em style={{ color: airCat.key === 'good' ? '#1E7A45' : airCat.key === 'moderate' ? '#8A6A00' : '#B42318' }}>{T[lang].cats[airCat.key]}</em></>}</span></div>
           <div className="lp-stat"><b style={{ color: '#8B5E34' }}>{num(live?.forestAlerts)}</b><span>{t.forest}</span></div>
@@ -197,7 +197,6 @@ export default function Landing() {
                   : installEvt ? <button className="lp-btn lp-btn-light" onClick={install}>{t.install}</button>
                   : dev.os === 'android' && dev.inApp ? <a className="lp-btn lp-btn-light" href={chromeIntent()}>{t.openChrome}</a>
                   : <p className="lp-get-note">{t.androidManual}</p>}
-                <span className="lp-get-soon mono">{t.playSoon}</span>
               </div>
             )}
             {(dev.os !== 'android') && (

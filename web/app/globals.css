@@ -21,7 +21,7 @@ button { font: inherit; color: inherit; }
 /* Top bar */
 .topbar { position: sticky; top: 0; z-index: 20; height: var(--top); display: flex; align-items: center; gap: 10px; padding: 0 16px;
   background: var(--surface); border-bottom: 1px solid var(--line); }
-.brand { display: flex; align-items: baseline; gap: 6px; margin-right: auto; white-space: nowrap; text-decoration: none; color: var(--ink); }
+.brand { flex: none; display: flex; align-items: baseline; gap: 6px; margin-right: auto; white-space: nowrap; text-decoration: none; color: var(--ink); }
 .brand-home { align-items: center; margin-left: -6px; padding: 6px 8px 6px 4px; border-radius: 10px; min-height: 44px; }
 .brand-home:hover { background: var(--ground); color: var(--ink); }
 .brand-home:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
@@ -36,7 +36,7 @@ button { font: inherit; color: inherit; }
 .city-select select { border: 0; background: transparent; font: 600 14px var(--font); color: var(--ink); max-width: 46vw; cursor: pointer; }
 .city-select select:focus { outline: none; }
 .city-select:focus-within { outline: 2px solid var(--ink); outline-offset: 1px; }
-.lang { display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; height: 40px; }
+.lang { flex: none; display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; height: 40px; }
 .lang button { border: 0; background: var(--surface); padding: 0 8px; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; min-width: 40px; }
 .lang button[aria-pressed='true'] { background: var(--ink); color: #FFFFFF; }
 

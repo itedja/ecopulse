@@ -289,7 +289,7 @@ export default function Home() {
                         : smoke && smoke.count > 0 ? t.smokeYes(smoke.count) : t.smokeNone}
                     </b>
                     {cityWind?.wind_direction_deg != null && (
-                      <span className="mono small">{compass(cityWind.wind_direction_deg, lang)} {Math.round(cityWind.wind_speed_kmh ?? 0)} km/h{smoke && smoke.count > 0 && smoke.nearestKm != null ? ` · ${t.nearest(smoke.nearestKm)}` : ''}</span>
+                      <span className="mono small">{compass(cityWind.wind_direction_deg, lang)} {Math.round(cityWind.wind_speed_kmh ?? 0)} {lang === 'id' ? 'km/jam' : 'km/h'}{smoke && smoke.count > 0 && smoke.nearestKm != null ? ` · ${t.nearest(smoke.nearestKm)}` : ''}</span>
                     )}
                   </div>
                 </div>
@@ -351,7 +351,7 @@ export default function Home() {
 
           <footer className="credits">
             <p>{t.disclaimer} <a href="/privacy">{lang === 'en' ? 'Privacy' : 'Privasi'}</a></p>
-            <p>Data: <a href="https://waqi.info" target="_blank" rel="noopener noreferrer">World Air Quality Index Project</a> &amp; originating EPAs · <a href="https://openaq.org" target="_blank" rel="noopener noreferrer">OpenAQ</a> · NASA FIRMS · <a href="https://open-meteo.com" target="_blank" rel="noopener noreferrer">Open-Meteo</a> (CC BY 4.0) · BMKG · Province borders CC BY 4.0 (denyherianto). Map © OpenStreetMap contributors · OpenFreeMap.</p>
+            <p>Data: <a href="https://waqi.info" target="_blank" rel="noopener noreferrer">World Air Quality Index Project</a> &amp; originating EPAs · <a href="https://openaq.org" target="_blank" rel="noopener noreferrer">OpenAQ</a> · NASA FIRMS · <a href="https://open-meteo.com" target="_blank" rel="noopener noreferrer">Open-Meteo</a> (CC BY 4.0) · BMKG · {lang === 'id' ? 'Batas provinsi' : 'Province borders'} CC BY 4.0 (denyherianto). Map © OpenStreetMap contributors · OpenFreeMap.</p>
           </footer>
         </aside>
       </main>

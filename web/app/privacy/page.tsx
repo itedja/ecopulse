@@ -41,7 +41,7 @@ export default function Privacy() {
 
       <h2>Your choices</h2>
       <p>You can sign out at any time. To delete your account and everything linked to it, email <a href={`mailto:${CONTACT}`}>{CONTACT}</a>
-        from the email you signed in with. We will delete it within 30 days.</p>
+        {' '}from the email you signed in with. We will delete it within 30 days.</p>
 
       <h2 id="id">Bahasa Indonesia</h2>
       <p>EcoPulse Indonesia adalah peta gratis dan nonkomersial. Tanpa iklan, dan data Anda tidak dijual atau dibagikan.</p>

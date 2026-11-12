@@ -15,6 +15,7 @@ export type Place = { en: string; id: string };
 export type Live = {
   updatedAt: string | null;
   fires7d: number;
+  firesSince: string | null; // set when the fire record is younger than 7 days
   forestAlerts: number;
   reports: number;
   worstAir: (Place & { aqi: number }) | null;
@@ -24,7 +25,7 @@ export type Live = {
   cityPoints: { lon: number; lat: number; aqi: number }[];
 };
 
-type Rank = { name_en: string; name_id: string; fires_7d: number; forest_alerts_7d: number | null };
+type Rank = { name_en: string; name_id: string; fires_7d: number; forest_alerts_7d: number | null; fires_since: string | null };
 type Aq = { slug: string; name_en: string; aqi_us: number; computed_at: string; latitude: number; longitude: number };
 
 function top<T>(rows: T[], val: (r: T) => number): T | null {
@@ -35,7 +36,7 @@ function top<T>(rows: T[], val: (r: T) => number): T | null {
 
 export async function loadLive(): Promise<Live> {
   const [ranks, aq, cities, reports, fires] = await Promise.all([
-    db.from('province_rankings_7d').select('name_en, name_id, fires_7d, forest_alerts_7d'),
+    db.from('province_rankings_7d').select('name_en, name_id, fires_7d, forest_alerts_7d, fires_since'),
     db.from('city_aq_latest').select('slug, name_en, aqi_us, computed_at, latitude, longitude'),
     db.from('cities').select('slug, name_id'),
     db.from('reports_public').select('id', { count: 'exact', head: true }),
@@ -48,8 +49,11 @@ export async function loadLive(): Promise<Live> {
   const mf = top(r, (x) => x.fires_7d);
   const mfo = top(r, (x) => x.forest_alerts_7d ?? 0);
   const updatedAt = a.reduce<string | null>((m, x) => (!m || x.computed_at > m ? x.computed_at : m), null);
+  const since = r[0]?.fires_since ?? null;
+  const young = since && Date.now() - new Date(since).getTime() < 7 * 86400_000;
   return {
     updatedAt,
+    firesSince: young ? since : null,
     fires7d: r.reduce((s, x) => s + x.fires_7d, 0),
     forestAlerts: r.reduce((s, x) => s + (x.forest_alerts_7d ?? 0), 0),
     reports: reports.count ?? 0,
@@ -66,16 +70,17 @@ export const L = {
     nav: { map: 'Peta langsung', get: 'Pasang aplikasi' },
     live: 'LANGSUNG', updated: (m: number) => (m < 1 ? 'baru saja diperbarui' : m < 60 ? `diperbarui ${m} menit lalu` : `diperbarui ${Math.round(m / 60)} jam lalu`),
     h1: 'Lihat apa yang terjadi pada udara dan hutan Indonesia. Saat ini juga.',
-    lede: 'Data satelit dan alat pemantau udara dari seluruh Indonesia, diperbarui setiap 15 menit. Gratis, tanpa iklan.',
+    lede: 'Data satelit dan alat pemantau udara dari seluruh Indonesia. Udara diperbarui tiap 15 menit, titik api tiap 3 jam. Gratis, tanpa iklan.',
     ctaApp: 'Pasang aplikasinya, gratis', ctaMap: 'Buka peta langsung',
     nowTitle: 'INDONESIA SAAT INI',
     fires: 'titik api dalam 7 hari terakhir',
+    firesSince: (d: string) => `titik api sejak ${d}`,
     air: (c: string) => `udara ${c}`,
     forest: 'peringatan kehilangan hutan, minggu data satelit terbaru',
     reports: 'laporan warga yang masih aktif',
     sources: 'NASA FIRMS · Global Forest Watch · WAQI · OpenAQ',
     mapHint: 'Ketuk untuk membuka peta langsung', legendFire: 'Titik api', legendAir: 'Kualitas udara kota',
-    worstTitle: 'Terparah di Indonesia hari ini', worstAir: 'UDARA TERBURUK', mostFires: 'TITIK API TERBANYAK', mostForest: 'KEHILANGAN HUTAN TERBANYAK',
+    worstTitle: 'Terparah di Indonesia saat ini', worstAir: 'UDARA TERBURUK', mostFires: 'TITIK API TERBANYAK', mostForest: 'KEHILANGAN HUTAN TERBANYAK',
     nFires: (n: string) => `${n} titik api`, nAlerts: (n: string) => `${n} peringatan`,
     share: 'Bagikan ke Story', sharing: 'Menyiapkan…',
     featTitle: 'APA YANG BISA DILAKUKAN APLIKASI INI',
@@ -96,7 +101,6 @@ export const L = {
     androidManual: 'Di Chrome, ketuk menu ⋮ lalu "Tambahkan ke layar utama" atau "Instal aplikasi".',
     iosSteps: ['Buka halaman ini di Safari', 'Ketuk tombol Bagikan (kotak dengan panah ke atas)', 'Pilih "Tambahkan ke Layar Utama", lalu "Tambah"'],
     iosStepsInApp: ['Ketuk ⋯ di pojok kanan atas, lalu "Buka di browser eksternal"', 'Di Safari, ketuk tombol Bagikan', 'Pilih "Tambahkan ke Layar Utama", lalu "Tambah"'],
-    playSoon: 'Google Play: segera hadir',
     desktopNote: 'Di komputer? Buka alamat ini di ponsel Anda untuk memasangnya.',
     banner: (app: string) => `Anda membuka halaman ini di dalam ${app}`,
     bannerIos: 'Untuk memasang aplikasi, ketuk ⋯ di pojok kanan atas, lalu "Buka di browser eksternal".',
@@ -110,16 +114,17 @@ export const L = {
     nav: { map: 'Live map', get: 'Get the app' },
     live: 'LIVE', updated: (m: number) => (m < 1 ? 'updated just now' : m < 60 ? `updated ${m} min ago` : `updated ${Math.round(m / 60)} h ago`),
     h1: "See what is happening to Indonesia's air and forests. Right now.",
-    lede: 'Satellites and air monitors across Indonesia, updated every 15 minutes. Free, no ads.',
+    lede: 'Satellites and air monitors across Indonesia. Air updates every 15 minutes, fires every 3 hours. Free, no ads.',
     ctaApp: 'Get the free app', ctaMap: 'Open the live map',
     nowTitle: 'INDONESIA RIGHT NOW',
     fires: 'fire hotspots in the last 7 days',
+    firesSince: (d: string) => `fire hotspots since ${d}`,
     air: (c: string) => `${c} air`,
     forest: 'forest-loss alerts, latest week of satellite data',
     reports: 'active reports from people',
     sources: 'NASA FIRMS · Global Forest Watch · WAQI · OpenAQ',
     mapHint: 'Tap to open the live map', legendFire: 'Fire hotspot', legendAir: 'City air quality',
-    worstTitle: "Today's worst in Indonesia", worstAir: 'WORST AIR', mostFires: 'MOST FIRES', mostForest: 'MOST FOREST LOSS',
+    worstTitle: "Indonesia's worst right now", worstAir: 'WORST AIR', mostFires: 'MOST FIRES', mostForest: 'MOST FOREST LOSS',
     nFires: (n: string) => `${n} hotspots`, nAlerts: (n: string) => `${n} alerts`,
     share: 'Share to your Story', sharing: 'Preparing…',
     featTitle: 'WHAT THE APP DOES',
@@ -140,7 +145,6 @@ export const L = {
     androidManual: 'In Chrome, tap the ⋮ menu, then "Add to Home screen" or "Install app".',
     iosSteps: ['Open this page in Safari', 'Tap the Share button (square with an up arrow)', 'Choose "Add to Home Screen", then "Add"'],
     iosStepsInApp: ['Tap ⋯ at the top right, then "Open in external browser"', 'In Safari, tap the Share button', 'Choose "Add to Home Screen", then "Add"'],
-    playSoon: 'Google Play: coming soon',
     desktopNote: 'On a computer? Open this address on your phone to install it.',
     banner: (app: string) => `You opened this inside ${app}`,
     bannerIos: 'To install the app, tap ⋯ at the top right, then "Open in external browser".',

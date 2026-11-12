@@ -121,7 +121,7 @@ export default function MapView({ aq, stations, fires, wind, alerts, quakes, for
     map.current = m;
 
     m.on('load', () => {
-      m.addImage('arrow', arrowImage(), { pixelRatio: 2 });
+      m.addImage('ep-arrow', arrowImage(), { pixelRatio: 2 });
       m.addImage('sq', squareImage(false), { pixelRatio: 2 });
       m.addImage('sq-sel', squareImage(true), { pixelRatio: 2 });
       for (const st of ['filled', 'hollow', 'grey'] as const) {
@@ -135,7 +135,7 @@ export default function MapView({ aq, stations, fires, wind, alerts, quakes, for
       m.addLayer({
         id: 'wind-arrow', type: 'symbol', source: 'wind',
         layout: {
-          'icon-image': 'arrow', 'icon-rotate': ['get', 'to'], 'icon-rotation-alignment': 'map', 'icon-allow-overlap': true,
+          'icon-image': 'ep-arrow', 'icon-rotate': ['get', 'to'], 'icon-rotation-alignment': 'map', 'icon-allow-overlap': true,
           'icon-size': ['interpolate', ['linear'], ['get', 'speed'], 0, 0.6, 30, 1.2],
         },
         paint: { 'icon-opacity': 0.75 },
