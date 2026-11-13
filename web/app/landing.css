@@ -46,6 +46,7 @@
 .lp-stat { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 6px; }
 .lp-stat b { font-size: 30px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; }
 .lp-stat span { font-size: 14px; font-weight: 600; line-height: 1.35; }
+.lp-stat b span { font: inherit; letter-spacing: inherit; line-height: inherit; }
 .lp-stat em { font-style: normal; }
 .lp-src { margin: 10px 0 0; font-size: 11px; color: var(--muted); }
 
