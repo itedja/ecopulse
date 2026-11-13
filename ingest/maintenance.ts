@@ -1,4 +1,4 @@
-// Daily housekeeping: deletes old data, expires stale reports, and on Mondays
+// Daily housekeeping: deletes old data, expires stale reports, rebuilds repeat-fire areas, and
 // builds last week's province leaderboard.
 import { isMain } from './lib/main.ts';
 import { db } from './lib/db.ts';
@@ -25,8 +25,13 @@ async function main() {
     const { error: wErr } = await db().rpc('refresh_province_weekly_stats', { p_week_start: week });
     if (wErr) throw new Error(`weekly stats: ${wErr.message}`);
 
+    // Repeat-fire areas: add the latest detections and rebuild the map layer.
+    const { data: repeat, error: rErr } = await db().rpc('refresh_repeat_fire');
+    // Not fatal: the housekeeping above has already run.
+    if (rErr) console.warn(`  refresh_repeat_fire failed: ${rErr.message}`);
+    else console.log(`  repeat-fire cells: ${repeat}`);
     console.log(`  purged old rows, expired ${expired ?? 0} reports, rebuilt week of ${week}`);
-    return { rows: Number(expired ?? 0) };
+    return { rows: Number(expired ?? 0), partial: rErr ? `refresh_repeat_fire: ${rErr.message}` : undefined };
   });
 }
 

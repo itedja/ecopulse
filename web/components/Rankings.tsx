@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { category } from '@/lib/aqi';
 import { T, type Lang } from '@/lib/i18n';
 import { drawRankingCard, shareCanvas } from '@/lib/shareCard';
+import type { RepeatProvince, RepeatMeta } from '@/lib/supabase';
 
 export type RankingRow = {
   id: number; slug: string; name_en: string; name_id: string; island_group: string;
@@ -11,11 +12,11 @@ export type RankingRow = {
   forest_alerts_7d: number | null; forest_ha_7d: number | null;
   fires_since: string | null; air_since: string | null; forest_since: string | null; data_since: string | null;
 };
-type Metric = 'fire' | 'air' | 'forest';
+type Metric = 'fire' | 'air' | 'forest' | 'repeat';
 
-type Props = { rows: RankingRow[]; lang: Lang; myProvinceId: number | null; site: string };
+type Props = { rows: RankingRow[]; repeat: RepeatProvince[]; repeatMeta: RepeatMeta | null; onShowRepeat: () => void; lang: Lang; myProvinceId: number | null; site: string };
 
-export default function Rankings({ rows, lang, myProvinceId, site }: Props) {
+export default function Rankings({ rows, repeat, repeatMeta, onShowRepeat, lang, myProvinceId, site }: Props) {
   const t = T[lang];
   const [metric, setMetric] = useState<Metric>('fire');
   const [busy, setBusy] = useState(false);
@@ -31,17 +32,22 @@ export default function Rankings({ rows, lang, myProvinceId, site }: Props) {
   const airRows = useMemo(() => rows.filter((r) => r.aqi_7d != null).sort((a, b) => (b.aqi_7d ?? 0) - (a.aqi_7d ?? 0)), [rows]);
   const noMonitor = rows.length - airRows.length;
   const forestRows = useMemo(() => rows.filter((r) => (r.forest_alerts_7d ?? 0) > 0).sort((a, b) => (b.forest_alerts_7d ?? 0) - (a.forest_alerts_7d ?? 0)), [rows]);
-  const list = metric === 'fire' ? fireRows : metric === 'air' ? airRows : forestRows;
-  const valueOf = (r: RankingRow) => (metric === 'fire' ? r.fires_7d : metric === 'air' ? r.aqi_7d ?? 0 : r.forest_alerts_7d ?? 0);
+  const repById = useMemo(() => new Map(repeat.map((p) => [p.id, p])), [repeat]);
+  const repeatRows = useMemo(() => rows.filter((r) => (repById.get(r.id)?.cells_3plus ?? 0) > 0)
+    .sort((a, b) => (repById.get(b.id)!.cells_3plus - repById.get(a.id)!.cells_3plus) || a.name_en.localeCompare(b.name_en)), [rows, repById]);
+  const list = metric === 'fire' ? fireRows : metric === 'air' ? airRows : metric === 'forest' ? forestRows : repeatRows;
+  const valueOf = (r: RankingRow) => (metric === 'fire' ? r.fires_7d : metric === 'air' ? r.aqi_7d ?? 0 : metric === 'forest' ? r.forest_alerts_7d ?? 0 : Number(repById.get(r.id)?.km2_3plus ?? 0));
   const max = Math.max(1, ...list.map(valueOf));
   const fmtHa = (ha: number | null) => (ha == null ? '0' : ha >= 10 ? Math.round(ha).toLocaleString() : ha.toFixed(1));
-  const subOf = (r: RankingRow) => metric === 'fire' ? t.rank.highConf(r.high_conf_7d)
+  const subOf = (r: RankingRow) => metric === 'repeat' ? t.rank.repeatSub((repById.get(r.id)?.cells_3plus ?? 0).toLocaleString(lang === 'en' ? 'en-US' : 'id-ID'), repById.get(r.id)?.cells_5 ?? 0)
+    : metric === 'fire' ? t.rank.highConf(r.high_conf_7d)
     : metric === 'air' ? `${r.pm25_7d} µg/m³ · ${t.rank.monitors(r.air_stations)}`
     : r.forest_ha_7d != null ? t.rank.forestSub(fmtHa(r.forest_ha_7d)) : t.rank.forestCount;
   const totalFires = rows.reduce((s, r) => s + r.fires_7d, 0);
 
   const range = useMemo(() => {
     const f = (d: Date) => d.toLocaleDateString(lang === 'en' ? 'en-GB' : 'id-ID', { day: 'numeric', month: 'short', timeZone: 'Asia/Jakarta' });
+    if (metric === 'repeat') return repeatMeta ? t.rank.repeatRange(repeatMeta.window_start, repeatMeta.window_end) : '';
     const sinceIso = metric === 'fire' ? rows[0]?.fires_since : metric === 'air' ? rows[0]?.air_since : rows[0]?.forest_since;
     const weekAgo = new Date(Date.now() - 6 * 86400_000);
     const since = sinceIso ? new Date(sinceIso) : null;
@@ -49,7 +55,7 @@ export default function Rankings({ rows, lang, myProvinceId, site }: Props) {
     if (metric === 'forest' && since) return `${f(since)} – ${f(new Date(since.getTime() + 6 * 86400_000))}`;
     if (since && since > weekAgo) return t.rank.since(f(since));
     return `${f(weekAgo)} – ${f(new Date())}`;
-  }, [lang, metric, rows, t]);
+  }, [lang, metric, rows, t, repeatMeta]);
 
   async function share() {
     setBusy(true);
@@ -59,14 +65,14 @@ export default function Rankings({ rows, lang, myProvinceId, site }: Props) {
         sub: subOf(r) + (metric === 'air' && r.air_limited ? ` · ${t.rank.limited}` : ''),
       }));
       await shareCanvas((ctx) => drawRankingCard(ctx, {
-        title: metric === 'fire' ? t.rank.cardFire : metric === 'air' ? t.rank.cardAir : t.rank.cardForest,
+        title: metric === 'fire' ? t.rank.cardFire : metric === 'air' ? t.rank.cardAir : metric === 'forest' ? t.rank.cardForest : t.rank.cardRepeat,
         subtitle: range,
-        rows: top, kind: metric,
-        unit: metric === 'fire' ? t.rank.unitFire : metric === 'air' ? t.rank.unitAir : t.rank.unitForest,
-        source: metric === 'fire' ? 'NASA FIRMS' : metric === 'air' ? 'OpenAQ' : 'Global Forest Watch',
+        rows: top, kind: metric === 'repeat' ? 'fire' : metric,
+        unit: metric === 'fire' ? t.rank.unitFire : metric === 'air' ? t.rank.unitAir : metric === 'forest' ? t.rank.unitForest : t.rank.unitRepeat,
+        source: metric === 'fire' || metric === 'repeat' ? 'NASA FIRMS' : metric === 'air' ? 'OpenAQ' : 'Global Forest Watch',
         site,
       }), `ecopulse-${metric}-${new Date().toISOString().slice(0, 10)}.png`,
-      `${metric === 'fire' ? t.rank.cardFire : metric === 'air' ? t.rank.cardAir : t.rank.cardForest} · ${site}`);
+      `${metric === 'fire' ? t.rank.cardFire : metric === 'air' ? t.rank.cardAir : metric === 'forest' ? t.rank.cardForest : t.rank.cardRepeat} · ${site}`);
     } finally { setBusy(false); }
   }
 
@@ -75,7 +81,7 @@ export default function Rankings({ rows, lang, myProvinceId, site }: Props) {
       <div className="rank-head">
         <div>
           <h2 className="h2" style={{ marginBottom: 2 }}>{t.rank.title}</h2>
-          <div className="mono small muted">{range.startsWith(t.rank.since('').trim().split(' ')[0]) ? range : `${range} · ${t.rank.rolling}`}</div>
+          <div className="mono small muted">{metric === 'repeat' || range.startsWith(t.rank.since('').trim().split(' ')[0]) ? range : `${range} · ${t.rank.rolling}`}</div>
         </div>
         <button className="btn-ink" onClick={share} disabled={busy || list.length === 0}>
           <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /><path d="m16 6-4-4-4 4" /><path d="M12 2v13" /></svg>
@@ -87,16 +93,21 @@ export default function Rankings({ rows, lang, myProvinceId, site }: Props) {
         <button aria-pressed={metric === 'fire'} onClick={() => setMetric('fire')}>{t.rank.fires}</button>
         <button aria-pressed={metric === 'air'} onClick={() => setMetric('air')}>{t.rank.air}</button>
         <button aria-pressed={metric === 'forest'} onClick={() => setMetric('forest')}>{t.rank.forest}</button>
+        <button aria-pressed={metric === 'repeat'} onClick={() => setMetric('repeat')}>{t.rank.repeat}</button>
       </div>
+
+      {metric === 'repeat' && repeatRows.length > 0 && (
+        <button className="btn-outline" onClick={onShowRepeat}>{lang === 'en' ? 'Show on the map' : 'Lihat di peta'}</button>
+      )}
 
       {metric === 'fire' && totalFires > 0 && <p className="rank-note">{t.rank.fireTotal(totalFires)}</p>}
 
-      {list.length === 0 && <p className="muted">{metric === 'fire' ? t.rank.emptyFire : metric === 'air' ? t.rank.emptyAir : t.rank.emptyForest}</p>}
+      {list.length === 0 && <p className="muted">{metric === 'fire' ? t.rank.emptyFire : metric === 'air' ? t.rank.emptyAir : metric === 'forest' ? t.rank.emptyForest : t.rank.emptyRepeat}</p>}
 
       <ol className="rank-list">
         {list.map((r, i) => {
           const v = valueOf(r);
-          const color = metric === 'fire' ? 'var(--fire)' : metric === 'forest' ? 'var(--forest)' : category(v)?.color;
+          const color = metric === 'fire' ? 'var(--fire)' : metric === 'forest' ? 'var(--forest)' : metric === 'repeat' ? 'var(--rep4)' : category(v)?.color;
           const delta = r.fires_7d - r.fires_prev_7d;
           return (
             <li key={r.id} className={r.id === myProvinceId ? 'rank-row mine' : 'rank-row'}>
@@ -107,7 +118,7 @@ export default function Rankings({ rows, lang, myProvinceId, site }: Props) {
                 <span className="mono small muted">{subOf(r)}</span>
               </span>
               <span className="rank-v">
-                <b>{v}</b>
+                <b>{metric === 'repeat' ? v.toLocaleString(lang === 'en' ? 'en-US' : 'id-ID') : v}</b>{metric === 'repeat' && <small>km²</small>}
                 {metric === 'fire' && hasTrend && delta !== 0 && (
                   <span className={delta > 0 ? 'up' : 'down'} aria-label={delta > 0 ? t.rank.up : t.rank.down}>{delta > 0 ? '▲' : '▼'} {Math.abs(delta)}</span>
                 )}
@@ -118,7 +129,7 @@ export default function Rankings({ rows, lang, myProvinceId, site }: Props) {
       </ol>
 
       <p className="mono small muted rank-foot">
-        {metric === 'fire' ? t.rank.fireMethod : metric === 'air' ? t.rank.airMethod(noMonitor) : t.rank.forestMethod}
+        {metric === 'fire' ? t.rank.fireMethod : metric === 'air' ? t.rank.airMethod(noMonitor) : metric === 'forest' ? t.rank.forestMethod : repeatMeta ? t.rank.repeatMethod(repeatMeta.window_start, repeatMeta.window_end, repeatMeta.static_cells) : ''}
       </p>
     </section>
   );

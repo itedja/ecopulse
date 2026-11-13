@@ -1,0 +1,26 @@
+name: Fire history (repeat-fire areas, manual)
+on:
+  workflow_dispatch:
+    inputs:
+      years:
+        description: 'How many calendar years to load (including this one)'
+        default: '5'
+concurrency:
+  group: fire-history
+jobs:
+  load:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      FIRMS_MAP_KEY: ${{ secrets.FIRMS_MAP_KEY }}
+      YEARS: ${{ inputs.years }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run ingest:fire-history

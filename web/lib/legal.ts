@@ -51,6 +51,33 @@ export const CLEAN_AIR: LegalNoteData = {
   sources: [MK_119, UU_PPLH],
 };
 
+// Shown on repeat-fire cards: the general law on burning land. Never applied to a specific
+// company or person here; that needs an official finding.
+export const FIRE_LAW: LegalNoteData = {
+  title: { en: 'The law on burning land', id: 'Hukum soal membakar lahan' },
+  lead: {
+    en: 'Clearing land by burning is prohibited (Environment Law 32/2009, Article 69(1)(h)).',
+    id: 'Membuka lahan dengan cara membakar dilarang (UU 32/2009, Pasal 69 ayat 1 huruf h).',
+  },
+  points: {
+    en: [
+      'There is a narrow exception for local custom: at most 2 hectares per family (Article 69(2), as amended by the Job Creation Law).',
+      'A permit holder is strictly liable for fire on its land: it is enough to show the fire happened there, without proving fault (Supreme Court, 297 PK/Pdt/2024).',
+      'The map shows heat seen by satellites. It does not say who caused a fire.',
+    ],
+    id: [
+      'Ada pengecualian terbatas untuk kearifan lokal: paling luas 2 hektare per kepala keluarga (Pasal 69 ayat 2, sebagaimana diubah UU Cipta Kerja).',
+      'Pemegang izin bertanggung jawab mutlak atas kebakaran di lahannya: cukup dibuktikan kebakaran terjadi di sana, tanpa membuktikan kesalahan (Putusan MA 297 PK/Pdt/2024).',
+      'Peta ini menunjukkan panas yang dilihat satelit. Peta ini tidak menyatakan siapa penyebab kebakaran.',
+    ],
+  },
+  sources: [
+    UU_PPLH,
+    { label: 'DPR, Info Singkat Agustus 2025', url: 'https://berkas.dpr.go.id/pusaka/files/info_singkat/Info%20Singkat-XVII-15-I-P3DI-Agustus-2025-189.pdf' },
+    { label: 'MA 297 PK/Pdt/2024', url: 'https://marinews.mahkamahagung.go.id/putusan/yurisprudensi-ma-korporasi-bebas-pidana-namun-tetap-0zn' },
+  ],
+};
+
 // Extra for the Jakarta area, where citizens won a court case about the air.
 export const JAKARTA_CASE: LegalNoteData = {
   title: { en: 'The courts have ruled on Jakarta’s air', id: 'Pengadilan sudah memutus soal udara Jakarta' },

@@ -13,6 +13,16 @@ export const supabase = createClient(url ?? 'http://localhost', key ?? 'missing'
 
 export type City = { id: number; slug: string; name_en: string; name_id: string; latitude: number; longitude: number; province_id: number };
 export type CityAq = { city_id: number; slug: string; pm25_ugm3: number | null; aqi_us: number; category: string; station_count: number; computed_at: string; latitude: number; longitude: number; name_en: string };
+// Repeat-fire areas: cells of 0.02° (about 2.2 km) that burned in 2+ of the last 5 calendar years.
+export type RepeatPoint = { cx: number; cy: number; n: number };
+export type RepeatCell = { cx: number; cy: number; lon: number; lat: number; province_id: number | null; window_start: number; window_end: number;
+  years: number[]; days_by_year: number[]; n_years: number; month_years: number[]; this_year_days: number; last_seen: string };
+export type RepeatProvince = { id: number; slug: string; name_en: string; name_id: string; cells_3plus: number; cells_4plus: number; cells_5: number;
+  km2_3plus: number; window_start: number; window_end: number };
+export type RepeatMeta = { refreshed_at: string; window_start: number; window_end: number; static_cells: number; history_from: string | null };
+export const parseRepeatPoints = (s: string): RepeatPoint[] => (s ? s.split(';').map((r) => { const [cx, cy, n] = r.split(',').map(Number); return { cx, cy, n }; }) : []);
+export const cellCentre = (cx: number, cy: number) => ({ lon: (cx + 0.5) / 50, lat: (cy + 0.5) / 50 });
+
 export type Hotspot = { id: number; latitude: number; longitude: number; acquired_at: string; confidence: string; frp_mw: number | null; province_id: number | null };
 export type Forecast = { city_id: number; slug: string; valid_at: string; aqi_forecast: number; pm25_forecast: number | null };
 export type Wind = { latitude: number; longitude: number; wind_speed_kmh: number | null; wind_direction_deg: number | null; city_id: number | null };

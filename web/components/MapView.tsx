@@ -4,14 +4,17 @@ import { useEffect, useRef } from 'react';
 import maplibregl, { type GeoJSONSource, type Map as MLMap } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { category } from '@/lib/aqi';
-import type { CityAq, Hotspot, Wind, Alert, Quake, City, ForestAlert, Report, Station } from '@/lib/supabase';
+import { cellCentre, type CityAq, type Hotspot, type Wind, type Alert, type Quake, type City, type ForestAlert, type Report, type Station, type RepeatPoint } from '@/lib/supabase';
 
-export type LayerKey = 'air' | 'fire' | 'forest' | 'reports' | 'wind' | 'alerts';
+export type LayerKey = 'air' | 'fire' | 'repeat' | 'forest' | 'reports' | 'wind' | 'alerts';
 
 type Props = {
   aq: CityAq[];
   stations: Station[];
   fires: Hotspot[];
+  repeat: RepeatPoint[];
+  selectedRepeat: { cx: number; cy: number } | null;
+  onSelectRepeat: (cx: number, cy: number) => void;
   wind: Wind[];
   alerts: Alert[];
   quakes: Quake[];
@@ -88,13 +91,14 @@ function arrowImage(): ImageData {
 const LAYER_IDS: Record<LayerKey, string[]> = {
   air: ['aq-circle', 'aq-selected', 'st-circle'],
   fire: ['fire-dot'],
+  repeat: ['repeat-cell', 'repeat-sel'],
   forest: ['forest-sq'],
   reports: ['report-pin'],
   wind: ['wind-arrow'],
   alerts: ['alert-fill', 'alert-line', 'quake-ring'],
 };
 
-export default function MapView({ aq, stations, fires, wind, alerts, quakes, forests, reports, selectedReportId, onSelectReport, onSelectForest, selectedForestId, layers, selected, onSelectCity, lang }: Props) {
+export default function MapView({ aq, stations, fires, repeat, selectedRepeat, onSelectRepeat, wind, alerts, quakes, forests, reports, selectedReportId, onSelectReport, onSelectForest, selectedForestId, layers, selected, onSelectCity, lang }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<MLMap | null>(null);
   const ready = useRef(false);
@@ -104,6 +108,10 @@ export default function MapView({ aq, stations, fires, wind, alerts, quakes, for
   reportRef.current = onSelectReport;
   const forestRef = useRef(onSelectForest);
   forestRef.current = onSelectForest;
+  const repeatRef = useRef(onSelectRepeat);
+  repeatRef.current = onSelectRepeat;
+  const repeatSelRef = useRef(selectedRepeat);
+  repeatSelRef.current = selectedRepeat;
   const langRef = useRef(lang);
   langRef.current = lang;
   // The open map popup, so its text can switch language without closing it.
@@ -128,7 +136,7 @@ export default function MapView({ aq, stations, fires, wind, alerts, quakes, for
         m.addImage(`pin-${st}`, pinImage(st, false), { pixelRatio: 2 });
         m.addImage(`pin-${st}-sel`, pinImage(st, true), { pixelRatio: 2 });
       }
-      for (const id of ['aq', 'stations', 'fires', 'wind', 'alerts', 'quakes', 'forest', 'reports']) m.addSource(id, { type: 'geojson', data: fc([]) });
+      for (const id of ['aq', 'stations', 'fires', 'repeat', 'wind', 'alerts', 'quakes', 'forest', 'reports']) m.addSource(id, { type: 'geojson', data: fc([]) });
 
       m.addLayer({ id: 'alert-fill', type: 'fill', source: 'alerts', paint: { 'fill-color': '#2563EB', 'fill-opacity': 0.12 } });
       m.addLayer({ id: 'alert-line', type: 'line', source: 'alerts', paint: { 'line-color': '#2563EB', 'line-width': 1, 'line-opacity': 0.6 } });
@@ -139,6 +147,23 @@ export default function MapView({ aq, stations, fires, wind, alerts, quakes, for
           'icon-size': ['interpolate', ['linear'], ['get', 'speed'], 0, 0.6, 30, 1.2],
         },
         paint: { 'icon-opacity': 0.75 },
+      });
+      // Repeat-fire cells (~2 km). Colour = years burned out of 5; drawn under today's fire dots.
+      m.addLayer({
+        id: 'repeat-cell', type: 'circle', source: 'repeat', layout: { visibility: 'none' },
+        paint: {
+          'circle-color': ['match', ['get', 'n'], 2, '#FDBA74', 3, '#F97316', 4, '#DC2626', '#7F1D1D'],
+          'circle-radius': ['interpolate', ['exponential', 2], ['zoom'], 4, 1.6, 7, 2.6, 10, 8, 13, 60],
+          'circle-opacity': ['match', ['get', 'n'], 2, 0.55, 0.85],
+          'circle-stroke-color': '#FFFFFF', 'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 8, 0, 10, 1],
+        },
+      });
+      m.addLayer({
+        id: 'repeat-sel', type: 'circle', source: 'repeat', layout: { visibility: 'none' }, filter: ['==', ['get', 'sel'], true],
+        paint: {
+          'circle-color': 'rgba(0,0,0,0)', 'circle-stroke-color': '#0E1116', 'circle-stroke-width': 2.5,
+          'circle-radius': ['interpolate', ['exponential', 2], ['zoom'], 4, 4, 7, 5, 10, 10, 13, 62],
+        },
       });
       m.addLayer({
         id: 'fire-dot', type: 'circle', source: 'fires',
@@ -202,6 +227,12 @@ export default function MapView({ aq, stations, fires, wind, alerts, quakes, for
         },
       });
 
+      m.on('click', 'repeat-cell', (e) => {
+        const p = e.features?.[0]?.properties;
+        if (p?.cx != null) repeatRef.current(Number(p.cx), Number(p.cy));
+      });
+      m.on('mouseenter', 'repeat-cell', () => (m.getCanvas().style.cursor = 'pointer'));
+      m.on('mouseleave', 'repeat-cell', () => (m.getCanvas().style.cursor = ''));
       m.on('click', 'forest-sq', (e) => {
         const id = e.features?.[0]?.properties?.id;
         if (id != null) forestRef.current(Number(id));
@@ -268,6 +299,10 @@ export default function MapView({ aq, stations, fires, wind, alerts, quakes, for
       })));
       (m.getSource('fires') as GeoJSONSource)?.setData(fc(fires.map((f) =>
         pt(f.longitude, f.latitude, { confidence: f.confidence, when: when(f.acquired_at) }))));
+      (m.getSource('repeat') as GeoJSONSource)?.setData(fc(repeat.map((r) => {
+        const c = cellCentre(r.cx, r.cy);
+        return pt(c.lon, c.lat, { cx: r.cx, cy: r.cy, n: r.n, sel: selectedRepeat != null && r.cx === selectedRepeat.cx && r.cy === selectedRepeat.cy });
+      })));
       (m.getSource('wind') as GeoJSONSource)?.setData(fc(wind.filter((w) => w.wind_direction_deg != null).map((w) =>
         pt(w.longitude, w.latitude, { to: ((w.wind_direction_deg ?? 0) + 180) % 360, speed: w.wind_speed_kmh ?? 0 }))));
       (m.getSource('alerts') as GeoJSONSource)?.setData(fc(alerts.filter((a) => a.area).map((a) =>
@@ -284,7 +319,7 @@ export default function MapView({ aq, stations, fires, wind, alerts, quakes, for
         pt(q.longitude, q.latitude, { mag: q.magnitude, depth: q.depth_km ?? '?', region: q.region_text ?? '', when: when(q.occurred_at) }))));
     };
     if (ready.current) apply(); else m.once('ecopulse:ready', apply);
-  }, [aq, stations, fires, wind, alerts, quakes, forests, reports, selectedReportId, selectedForestId, selected, lang]);
+  }, [aq, stations, fires, repeat, selectedRepeat, wind, alerts, quakes, forests, reports, selectedReportId, selectedForestId, selected, lang]);
 
   // Layer toggles.
   useEffect(() => {
@@ -305,10 +340,19 @@ export default function MapView({ aq, stations, fires, wind, alerts, quakes, for
     m.flyTo({ center: [r.lon_public, r.lat_public], zoom: Math.max(m.getZoom(), 10), duration: 1000 });
   }, [selectedReportId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Fly to a repeat-fire area that was opened (from the map, the rankings or a shared link).
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !selectedRepeat) return;
+    const c = cellCentre(selectedRepeat.cx, selectedRepeat.cy);
+    const go = () => m.flyTo({ center: [c.lon, c.lat], zoom: Math.max(m.getZoom(), 10), duration: 1000 });
+    if (ready.current) go(); else m.once('ecopulse:ready', go);
+  }, [selectedRepeat?.cx, selectedRepeat?.cy]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Fly to the selected city.
   useEffect(() => {
     const m = map.current;
-    if (!m || !selected) return;
+    if (!m || !selected || repeatSelRef.current) return;   // an opened repeat-fire area keeps the view
     m.flyTo({ center: [selected.longitude, selected.latitude], zoom: 8, duration: 1200 });
   }, [selected?.slug]); // eslint-disable-line react-hooks/exhaustive-deps
 

@@ -1,7 +1,7 @@
 'use client';
 import dynamic from 'next/dynamic';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { supabase, supabaseConfigured, type City, type CityAq, type Hotspot, type Forecast, type Wind, type Alert, type Quake, type NewsItem, type ForestAlert, type HelpAction, type Report, type Leader, type Station } from '@/lib/supabase';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { supabase, supabaseConfigured, type City, type CityAq, type Hotspot, type Forecast, type Wind, type Alert, type Quake, type NewsItem, type ForestAlert, type HelpAction, type Report, type Leader, type Station, type RepeatPoint, type RepeatCell, type RepeatProvince, type RepeatMeta, parseRepeatPoints } from '@/lib/supabase';
 import { T, type Lang, cityTimeZone, hhmm } from '@/lib/i18n';
 import LegalNote from '@/components/LegalNote';
 import { CLEAN_AIR, JAKARTA_CASE, JAKARTA_AREA } from '@/lib/legal';
@@ -10,6 +10,7 @@ import { upwindFires, distanceKm, compass } from '@/lib/smoke';
 import type { LayerKey } from '@/components/MapView';
 import Rankings, { type RankingRow } from '@/components/Rankings';
 import ForestAlertCard from '@/components/ForestAlertCard';
+import RepeatFireCard from '@/components/RepeatFireCard';
 import ReportCard from '@/components/ReportCard';
 import Community from '@/components/Community';
 import { useAuth } from '@/lib/useAuth';
@@ -29,8 +30,9 @@ const store = {
 type Data = {
   cities: City[]; aq: CityAq[]; fires: Hotspot[]; forecast: Forecast[];
   wind: Wind[]; alerts: Alert[]; quakes: Quake[]; news: NewsItem[]; rankings: RankingRow[]; forests: ForestAlert[]; help: HelpAction[]; reports: Report[]; leaders: Leader[]; stations: Station[];
+  repeatProv: RepeatProvince[]; repeatMeta: RepeatMeta | null;
 };
-const EMPTY: Data = { cities: [], aq: [], fires: [], forecast: [], wind: [], alerts: [], quakes: [], news: [], rankings: [], forests: [], help: [], reports: [], leaders: [], stations: [] };
+const EMPTY: Data = { cities: [], aq: [], fires: [], forecast: [], wind: [], alerts: [], quakes: [], news: [], rankings: [], forests: [], help: [], reports: [], leaders: [], stations: [], repeatProv: [], repeatMeta: null };
 
 type RRow = { station_id: number; measured_at: string; pm25_ugm3: number | null; aqi_us: number | null;
   aq_stations: { name: string | null; source: string; attribution: string | null; latitude: number; longitude: number } | null };
@@ -54,7 +56,7 @@ function latestStations(rows: RRow[]): Station[] {
 async function loadAll(): Promise<Data> {
   const hour = new Date(); hour.setUTCMinutes(0, 0, 0);
   const now = new Date().toISOString();
-  const [cities, aq, fires, forecast, wind, alerts, quakes, news, rankings, forests, help, reports, leaders, readings] = await Promise.all([
+  const [cities, aq, fires, forecast, wind, alerts, quakes, news, rankings, forests, help, reports, leaders, readings, repeatProv, repeatMeta] = await Promise.all([
     supabase.from('cities').select('id, slug, name_en, name_id, latitude, longitude, province_id').eq('is_featured', true).order('name_en'),
     supabase.from('city_aq_latest').select('*'),
     supabase.from('hotspots_recent').select('id, latitude, longitude, acquired_at, confidence, frp_mw, province_id').limit(5000),
@@ -72,6 +74,8 @@ async function loadAll(): Promise<Data> {
     // Individual monitoring stations (latest reading in the last 3 hours), shown when zoomed in.
     supabase.from('aq_readings').select('station_id, measured_at, pm25_ugm3, aqi_us, aq_stations(name, source, attribution, latitude, longitude)')
       .gt('measured_at', new Date(Date.now() - 3 * 3600_000).toISOString()).order('measured_at', { ascending: false }).limit(5000),
+    supabase.from('repeat_fire_provinces').select('*'),
+    supabase.from('repeat_fire_meta').select('*').maybeSingle(),
   ]);
   type WRow = { wind_speed_kmh: number | null; wind_direction_deg: number | null; weather_points: { latitude: number; longitude: number; city_id: number | null } | null };
   return {
@@ -94,6 +98,8 @@ async function loadAll(): Promise<Data> {
     reports: (reports.data ?? []) as Report[],
     leaders: (leaders.data ?? []) as Leader[],
     stations: latestStations((readings.data ?? []) as unknown as RRow[]),
+    repeatProv: (repeatProv.data ?? []) as RepeatProvince[],
+    repeatMeta: (repeatMeta.data ?? null) as RepeatMeta | null,
   };
 }
 
@@ -104,8 +110,24 @@ export default function Home() {
   const [slug, setSlug] = useState('jakarta');
   const [tab, setTab] = useState<Tab>('map');
   const [sharing, setSharing] = useState(false);
-  const [layers, setLayers] = useState<Record<LayerKey, boolean>>({ air: true, fire: true, forest: true, reports: true, wind: true, alerts: true });
+  const [layers, setLayers] = useState<Record<LayerKey, boolean>>({ air: true, fire: true, repeat: false, forest: true, reports: true, wind: true, alerts: true });
   const [forestId, setForestId] = useState<number | null>(null);
+  // Repeat-fire layer: the point list is loaded only when the layer is first switched on.
+  const [repeatPts, setRepeatPts] = useState<RepeatPoint[]>([]);
+  const [repeatSel, setRepeatSel] = useState<{ cx: number; cy: number } | null>(null);
+  const [repeatCell, setRepeatCell] = useState<RepeatCell | null>(null);
+  const repeatLoaded = useRef(false);
+  useEffect(() => {
+    if (!layers.repeat || repeatLoaded.current) return;
+    repeatLoaded.current = true;
+    supabase.rpc('repeat_fire_points').then(({ data: txt }) => setRepeatPts(parseRepeatPoints(String(txt ?? ''))));
+  }, [layers.repeat]);
+  const openRepeat = (cx: number, cy: number) => {
+    setRepeatSel({ cx, cy }); setForestId(null); setReportId(null); setTab('map');
+    supabase.from('repeat_fire_cells').select('*').eq('cx', cx).eq('cy', cy).maybeSingle()
+      .then(({ data: row }) => setRepeatCell((row as RepeatCell | null) ?? null));
+  };
+  const closeRepeat = () => { setRepeatSel(null); setRepeatCell(null); };
   const [reportId, setReportId] = useState<string | null>(null);
   const auth = useAuth();
   const [installed, setInstalled] = useState(false);   // home-screen app: no way back to the website
@@ -119,7 +141,10 @@ export default function Home() {
     // Coming back from Google sign-in lands on the Report tab.
     const q = new URLSearchParams(window.location.search);
     if (q.get('tab') === 'reports') setTab('reports');
-  }, []);
+    // A shared repeat-fire link (/app?cell=5225,-175) opens that area's card.
+    const cell = /^(-?\d+),(-?\d+)$/.exec(q.get('cell') ?? '');
+    if (cell) { setLayers((l) => ({ ...l, repeat: true })); openRepeat(Number(cell[1]), Number(cell[2])); }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     // Tidy the address bar once the sign-in code has been used.
     if (auth.ready && window.location.search) window.history.replaceState(null, '', window.location.pathname);
@@ -157,7 +182,7 @@ export default function Home() {
   const provinceAlerts = data.alerts.filter((a) => city && a.province_ids?.includes(city.province_id));
   const minutesOld = reading ? Math.max(0, Math.round((now - new Date(reading.computed_at).getTime()) / 60_000)) : 0;
 
-  const openReport = (id: string) => { setReportId(id); setForestId(null); setTab('map'); };
+  const openReport = (id: string) => { setReportId(id); setForestId(null); closeRepeat(); setTab('map'); };
   const afterChange = () => { refresh(); auth.reloadProfile(); };
   const chooseCity = (s: string) => { setSlug(s); store.set('ep.city', s); setTab('map'); };
   const chooseLang = (l: Lang) => { setLang(l); store.set('ep.lang', l); };
@@ -212,8 +237,8 @@ export default function Home() {
 
       <main className="layout">
         <section className="map-pane">
-          <MapView aq={data.aq} stations={data.stations} fires={data.fires} wind={data.wind} alerts={data.alerts} quakes={data.quakes}
-            forests={data.forests} selectedForestId={forestId} onSelectForest={(id) => { setForestId(id); setReportId(null); setTab('map'); }}
+          <MapView aq={data.aq} stations={data.stations} fires={data.fires} repeat={repeatPts} selectedRepeat={repeatSel} onSelectRepeat={openRepeat} wind={data.wind} alerts={data.alerts} quakes={data.quakes}
+            forests={data.forests} selectedForestId={forestId} onSelectForest={(id) => { setForestId(id); setReportId(null); closeRepeat(); setTab('map'); }}
             reports={data.reports} selectedReportId={reportId} onSelectReport={openReport}
             layers={layers} selected={city} onSelectCity={chooseCity} lang={lang} />
           <div className="chips" role="group" aria-label="Map layers">
@@ -232,6 +257,10 @@ export default function Home() {
             <button aria-pressed={tab === 'reports'} onClick={() => setTab('reports')}>{t.tabs.reports}</button>
             <button aria-pressed={tab === 'news'} onClick={() => setTab('news')}>{t.tabs.news}</button>
           </div>
+          {repeatCell && repeatSel && repeatCell.cx === repeatSel.cx && repeatCell.cy === repeatSel.cy && (() => {
+            const pr = data.rankings.find((r) => r.id === repeatCell.province_id);
+            return <RepeatFireCard cell={repeatCell} provinceName={pr ? (lang === 'en' ? pr.name_en : pr.name_id) : null} lang={lang} onClose={closeRepeat} />;
+          })()}
           {(() => {
             const fa = forestId != null ? data.forests.find((f) => f.id === forestId) : undefined;
             return fa ? <ForestAlertCard alert={fa} help={data.help} lang={lang} site={site} onClose={() => setForestId(null)} /> : null;
@@ -335,7 +364,7 @@ export default function Home() {
               onSignIn={auth.signIn} onSignOut={auth.signOut} waiting={auth.waiting} onCancelWaiting={auth.cancelWaiting} onChanged={afterChange} onOpenReport={openReport} />
           )}
 
-          {loaded && <Rankings rows={data.rankings} lang={lang} myProvinceId={city?.province_id ?? null} site={site} />}
+          {loaded && <Rankings rows={data.rankings} repeat={data.repeatProv} repeatMeta={data.repeatMeta} onShowRepeat={() => { setLayers((l) => ({ ...l, repeat: true })); setTab('map'); }} lang={lang} myProvinceId={city?.province_id ?? null} site={site} />}
 
           <section className="card panel-news">
             <h2 className="h2">{t.news}</h2>
