@@ -79,7 +79,7 @@ grant select on repeat_fire_meta to anon, authenticated;
 
 -- Daily: add the latest live detections, then rebuild repeat_fire_cells.
 create or replace function refresh_repeat_fire()
-returns integer language plpgsql security definer set search_path = public as $$
+returns integer language plpgsql security definer set search_path = public, extensions as $$
 declare
   y1 int := extract(year from (now() at time zone 'Asia/Jakarta'))::int;
   y0 int := y1 - 4;
@@ -158,7 +158,7 @@ begin
     having count(*) >= 2
   ) a
   join provinces p on p.geom is not null
-                  and st_intersects(p.geom, st_setsrid(st_makepoint(a.lon, a.lat), 4326));
+                  and st_intersects(p.geom, st_setsrid(st_makepoint(a.lon::float8, a.lat::float8), 4326));
   get diagnostics n = row_count;
 
   insert into repeat_fire_meta (id, refreshed_at, window_start, window_end, static_cells, history_from)
