@@ -1,11 +1,12 @@
 -- 016: Facilities on the coast or small islands (refineries, smelters, ports) can sit just outside the
 -- simplified province outlines. Give those the nearest province within ~30 km.
 update emission_sources e
+set search_path = public, extensions;
 set province_id = (
   select p.id from provinces p
   where p.geom is not null
-    and extensions.st_dwithin(p.geom, extensions.st_setsrid(extensions.st_makepoint(e.lon, e.lat), 4326), 0.3)
-  order by extensions.st_distance(p.geom, extensions.st_setsrid(extensions.st_makepoint(e.lon, e.lat), 4326))
+    and st_dwithin(p.geom, st_setsrid(st_makepoint(e.lon, e.lat), 4326), 0.3)
+  order by st_distance(p.geom, st_setsrid(st_makepoint(e.lon, e.lat), 4326))
   limit 1)
 where e.province_id is null;
 
