@@ -310,3 +310,20 @@ button { font: inherit; color: inherit; }
 .rank-v small { font-size: 11px; color: var(--muted); font-weight: 500; }
 
 .countup { font-variant-numeric: tabular-nums; }
+
+/* Big emitters (Climate TRACE): violet = industry */
+:root { --emit: #6D28D9; }
+.dot-emit { background: var(--emit); border-radius: 50%; box-shadow: 0 0 0 1.5px #fff inset; }
+.emit { display: flex; flex-direction: column; gap: 14px; border-color: #D8CCF5; }
+.emit-kicker { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--emit); letter-spacing: 0.02em; text-transform: uppercase; }
+.emit-dot { width: 10px; height: 10px; border-radius: 5px; background: var(--emit); flex: none; }
+.emit-owners { display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
+.emit-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 6px; }
+.emit-air { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.emit-aqi { display: inline-block; min-width: 34px; text-align: center; padding: 1px 6px; border-radius: 6px; font-weight: 700; margin-right: 4px; }
+.emit-near { display: flex; flex-direction: column; gap: 6px; }
+.emit-near .list { margin: 0; }
+.emit-row { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 0; background: none; border: 0; text-align: left; cursor: pointer; font: inherit; color: inherit; }
+.emit-row-main { display: flex; flex-direction: column; min-width: 0; }
+.emit-row-main b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.emit-row:hover b { text-decoration: underline; }

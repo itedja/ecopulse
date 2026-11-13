@@ -111,3 +111,31 @@ export const NOT_ADVICE: Record<Lang, string> = {
   en: 'General information, not legal advice. Sources:',
   id: 'Informasi umum, bukan nasihat hukum. Sumber:',
 };
+
+// Shown on big-emitter cards: the general rules for smokestacks. Never applied to a specific
+// facility here; whether a facility meets its limits needs its own monitoring data.
+export const EMISSION_LAW: LegalNoteData = {
+  title: { en: 'The law on smokestack emissions', id: 'Hukum soal emisi cerobong' },
+  lead: {
+    en: 'Power plants and factories must keep their exhaust within legal emission limits and monitor it (for thermal power plants: Environment Ministry Regulation 15/2019).',
+    id: 'Pembangkit listrik dan pabrik wajib menjaga gas buangnya di bawah baku mutu emisi dan memantaunya (untuk pembangkit listrik tenaga termal: Permen LHK 15/2019).',
+  },
+  points: {
+    en: [
+      'Facilities that must measure their emissions continuously (CEMS) have to connect that data to the ministry’s SISPEK system (Regulation 13/2021, Article 2).',
+      'Whoever pollutes the air must deal with it and restore the damage (Government Regulation 22/2021, Articles 213 and 216).',
+      'Anyone can ask a government body for public information, such as monitoring reports, and give their reason (Law 14/2008 on Public Information, Article 4(3)). The body may refuse information the law exempts.',
+    ],
+    id: [
+      'Usaha yang wajib memantau emisi secara terus-menerus (CEMS) harus mengintegrasikan datanya ke sistem SISPEK milik kementerian (Permen LHK 13/2021, Pasal 2).',
+      'Setiap orang yang mencemari udara wajib menanggulangi dan memulihkan dampaknya (PP 22/2021, Pasal 213 dan 216).',
+      'Setiap orang berhak meminta informasi publik, misalnya laporan pemantauan, kepada badan publik dengan menyebutkan alasannya (UU 14/2008 tentang Keterbukaan Informasi Publik, Pasal 4 ayat 3). Badan publik boleh menolak informasi yang dikecualikan undang-undang.',
+    ],
+  },
+  sources: [
+    { label: 'Permen LHK 15/2019', url: 'https://peraturan.bpk.go.id/Details/286526/permenlhk-no-15-tahun-2019' },
+    { label: 'Permen LHK 13/2021 (SISPEK)', url: 'https://peraturan.bpk.go.id/Download/288590/Permen%20LHK%20Nomor%2013%20Tahun%202021.pdf' },
+    { label: 'PP 22/2021 (hukumonline)', url: 'https://www.hukumonline.com/klinik/a/polusi-udara-di-jakarta-kritis-kenali-aturan-pengendalian-pencemaran-udara-lt64df78aa454af/' },
+    { label: 'UU 14/2008 (KIP)', url: 'https://peraturan.bpk.go.id/Details/39047/uu-no-14-tahun-2008' },
+  ],
+};

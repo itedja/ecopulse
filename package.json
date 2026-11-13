@@ -15,7 +15,8 @@
     "ingest:news": "tsx ingest/news.ts",
     "ingest:deforestation": "tsx ingest/deforestation.ts",
     "ingest:reports": "tsx ingest/reports.ts",
-    "ingest:fire-history": "tsx ingest/fire-history.ts"
+    "ingest:fire-history": "tsx ingest/fire-history.ts",
+    "ingest:emitters": "tsx ingest/emitters.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.0",

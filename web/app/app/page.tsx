@@ -11,6 +11,8 @@ import type { LayerKey } from '@/components/MapView';
 import Rankings, { type RankingRow } from '@/components/Rankings';
 import ForestAlertCard from '@/components/ForestAlertCard';
 import RepeatFireCard from '@/components/RepeatFireCard';
+import EmitterCard from '@/components/EmitterCard';
+import { nearby, kindLabel, tonnes, EMIT_POINT_COLS, type Emitter, type EmitterPoint } from '@/lib/emitters';
 import ReportCard from '@/components/ReportCard';
 import Community from '@/components/Community';
 import { useAuth } from '@/lib/useAuth';
@@ -110,7 +112,7 @@ export default function Home() {
   const [slug, setSlug] = useState('jakarta');
   const [tab, setTab] = useState<Tab>('map');
   const [sharing, setSharing] = useState(false);
-  const [layers, setLayers] = useState<Record<LayerKey, boolean>>({ air: true, fire: true, repeat: false, forest: true, reports: true, wind: true, alerts: true });
+  const [layers, setLayers] = useState<Record<LayerKey, boolean>>({ air: true, fire: true, repeat: false, forest: true, emit: false, reports: true, wind: true, alerts: true });
   const [forestId, setForestId] = useState<number | null>(null);
   // Repeat-fire layer: the point list is loaded only when the layer is first switched on.
   const [repeatPts, setRepeatPts] = useState<RepeatPoint[]>([]);
@@ -123,11 +125,28 @@ export default function Home() {
     supabase.rpc('repeat_fire_points').then(({ data: txt }) => setRepeatPts(parseRepeatPoints(String(txt ?? ''))));
   }, [layers.repeat]);
   const openRepeat = (cx: number, cy: number) => {
-    setRepeatSel({ cx, cy }); setForestId(null); setReportId(null); setTab('map');
+    setRepeatSel({ cx, cy }); setForestId(null); setReportId(null); setEmitSel(null); setEmitRow(null); setTab('map');
     supabase.from('repeat_fire_cells').select('*').eq('cx', cx).eq('cy', cy).maybeSingle()
       .then(({ data: row }) => setRepeatCell((row as RepeatCell | null) ?? null));
   };
   const closeRepeat = () => { setRepeatSel(null); setRepeatCell(null); };
+  // Big emitters (Climate TRACE, updated monthly): the light point list is loaded once, for the map
+  // layer and the "near this city" list; a facility's full row is loaded when it is opened.
+  const [emitPts, setEmitPts] = useState<EmitterPoint[]>([]);
+  const [emitSel, setEmitSel] = useState<number | null>(null);
+  const [emitRow, setEmitRow] = useState<Emitter | null>(null);
+  useEffect(() => {
+    if (!supabaseConfigured) return;
+    supabase.from('emission_sources').select(EMIT_POINT_COLS).limit(2000)
+      .then(({ data: rows }) => setEmitPts((rows ?? []) as EmitterPoint[]));
+  }, []);
+  const openEmitter = (id: number) => {
+    setEmitSel(id); setForestId(null); setReportId(null); setRepeatSel(null); setRepeatCell(null); setTab('map');
+    setLayers((l) => (l.emit ? l : { ...l, emit: true }));
+    supabase.from('emission_sources').select('*').eq('id', id).maybeSingle()
+      .then(({ data: row }) => setEmitRow((row as Emitter | null) ?? null));
+  };
+  const closeEmitter = () => { setEmitSel(null); setEmitRow(null); };
   const [reportId, setReportId] = useState<string | null>(null);
   const auth = useAuth();
   const [installed, setInstalled] = useState(false);   // home-screen app: no way back to the website
@@ -144,6 +163,9 @@ export default function Home() {
     // A shared repeat-fire link (/app?cell=5225,-175) opens that area's card.
     const cell = /^(-?\d+),(-?\d+)$/.exec(q.get('cell') ?? '');
     if (cell) { setLayers((l) => ({ ...l, repeat: true })); openRepeat(Number(cell[1]), Number(cell[2])); }
+    // A shared emitter link (/app?emitter=448927) opens that facility's card.
+    const em = /^\d+$/.exec(q.get('emitter') ?? '');
+    if (em) openEmitter(Number(em[0]));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     // Tidy the address bar once the sign-in code has been used.
@@ -182,7 +204,20 @@ export default function Home() {
   const provinceAlerts = data.alerts.filter((a) => city && a.province_ids?.includes(city.province_id));
   const minutesOld = reading ? Math.max(0, Math.round((now - new Date(reading.computed_at).getTime()) / 60_000)) : 0;
 
-  const openReport = (id: string) => { setReportId(id); setForestId(null); closeRepeat(); setTab('map'); };
+  const nearEmitters = useMemo(() => (city ? nearby(emitPts, city.latitude, city.longitude) : []), [city, emitPts]);
+  // For an opened facility: the nearest city with a live air reading (within 150 km).
+  const emitNearAir = useMemo(() => {
+    if (!emitRow) return null;
+    let best: { city: string; km: number; aqi: number } | null = null;
+    for (const a of data.aq) {
+      const c = data.cities.find((x) => x.slug === a.slug);
+      if (!c) continue;
+      const km = Math.round(distanceKm(emitRow.lat, emitRow.lon, c.latitude, c.longitude));
+      if (km <= 150 && (!best || km < best.km)) best = { city: lang === 'en' ? c.name_en : c.name_id, km, aqi: a.aqi_us };
+    }
+    return best;
+  }, [emitRow, data.aq, data.cities, lang]);
+  const openReport = (id: string) => { setReportId(id); setForestId(null); closeRepeat(); closeEmitter(); setTab('map'); };
   const afterChange = () => { refresh(); auth.reloadProfile(); };
   const chooseCity = (s: string) => { setSlug(s); store.set('ep.city', s); setTab('map'); };
   const chooseLang = (l: Lang) => { setLang(l); store.set('ep.lang', l); };
@@ -237,8 +272,9 @@ export default function Home() {
 
       <main className="layout">
         <section className="map-pane">
-          <MapView aq={data.aq} stations={data.stations} fires={data.fires} repeat={repeatPts} selectedRepeat={repeatSel} onSelectRepeat={openRepeat} wind={data.wind} alerts={data.alerts} quakes={data.quakes}
-            forests={data.forests} selectedForestId={forestId} onSelectForest={(id) => { setForestId(id); setReportId(null); closeRepeat(); setTab('map'); }}
+          <MapView aq={data.aq} stations={data.stations} fires={data.fires} repeat={repeatPts} selectedRepeat={repeatSel} onSelectRepeat={openRepeat}
+            emitters={emitPts} selectedEmitterId={emitSel} onSelectEmitter={openEmitter} wind={data.wind} alerts={data.alerts} quakes={data.quakes}
+            forests={data.forests} selectedForestId={forestId} onSelectForest={(id) => { setForestId(id); setReportId(null); closeRepeat(); closeEmitter(); setTab('map'); }}
             reports={data.reports} selectedReportId={reportId} onSelectReport={openReport}
             layers={layers} selected={city} onSelectCity={chooseCity} lang={lang} />
           <div className="chips" role="group" aria-label="Map layers">
@@ -257,6 +293,10 @@ export default function Home() {
             <button aria-pressed={tab === 'reports'} onClick={() => setTab('reports')}>{t.tabs.reports}</button>
             <button aria-pressed={tab === 'news'} onClick={() => setTab('news')}>{t.tabs.news}</button>
           </div>
+          {emitRow && emitSel === emitRow.id && (() => {
+            const pr = data.rankings.find((r) => r.id === emitRow.province_id);
+            return <EmitterCard e={emitRow} provinceName={pr ? (lang === 'en' ? pr.name_en : pr.name_id) : null} nearAir={emitNearAir} lang={lang} onClose={closeEmitter} />;
+          })()}
           {repeatCell && repeatSel && repeatCell.cx === repeatSel.cx && repeatCell.cy === repeatSel.cy && (() => {
             const pr = data.rankings.find((r) => r.id === repeatCell.province_id);
             return <RepeatFireCard cell={repeatCell} provinceName={pr ? (lang === 'en' ? pr.name_en : pr.name_id) : null} lang={lang} onClose={closeRepeat} />;
@@ -329,6 +369,24 @@ export default function Home() {
                   <span>{t.updated(minutesOld)} · {t.stations(reading.station_count)}</span>
                   <span>OpenAQ · WAQI</span>
                 </div>
+                {emitPts.length > 0 && (
+                  <div className="emit-near">
+                    <span className="label">{t.emitCard.nearTitle}</span>
+                    {nearEmitters.length === 0 ? <p className="muted small">{t.emitCard.nearNone}</p> : (
+                      <ul className="list">
+                        {nearEmitters.map((x) => (
+                          <li key={x.id}>
+                            <button className="emit-row" onClick={() => openEmitter(x.id)}>
+                              <span className="emit-dot" aria-hidden="true" />
+                              <span className="emit-row-main"><b>{x.name}</b>
+                                <span className="mono small muted">{kindLabel(x, lang)} · {t.emitCard.nearMeta(x.km, x.pm25_t ? tonnes(x.pm25_t, lang) : null)}</span></span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
                 {cat.key !== 'good' && cat.key !== 'moderate' && (
                   <div className="legal-stack">
                     <LegalNote note={CLEAN_AIR} lang={lang} />
