@@ -26,7 +26,8 @@ export const T = {
     share: 'Share', sharing: 'Sharing…',
     forest: {
       kicker: 'FOREST LOSS · SATELLITE ALERTS', title: (p: string) => `Forest loss detected in ${p}`,
-      area: 'area flagged', alerts: 'satellite alerts', fires: 'fires within 10 km (30 days)',
+      alerts: 'satellite alerts', fires: 'fires within 10 km (30 days)',
+      pixel: 'Each alert is one satellite pixel (10–30 m across) where tree cover was lost. Alerts are early warnings, not confirmed loss.',
       what: "What's happening", pending: 'A short explanation will appear here after the next daily update.',
       aiNote: 'Summary written by AI from satellite data. Verify before reporting.',
       help: 'How you can help', hotline: 'Hotline', share: 'Share this alert', close: 'Close',
@@ -141,7 +142,8 @@ export const T = {
     share: 'Bagikan', sharing: 'Membagikan…',
     forest: {
       kicker: 'HUTAN HILANG · PERINGATAN SATELIT', title: (p: string) => `Kehilangan hutan terdeteksi di ${p}`,
-      area: 'luas terdeteksi', alerts: 'peringatan satelit', fires: 'titik api dalam 10 km (30 hari)',
+      alerts: 'peringatan satelit', fires: 'titik api dalam 10 km (30 hari)',
+      pixel: 'Setiap peringatan adalah satu piksel citra satelit (10–30 m) tempat tutupan pohon hilang. Peringatan adalah sinyal awal, bukan kehilangan yang terkonfirmasi.',
       what: 'Apa yang terjadi', pending: 'Penjelasan singkat akan muncul setelah pembaruan harian berikutnya.',
       aiNote: 'Ringkasan ditulis AI dari data satelit. Periksa sebelum melapor.',
       help: 'Cara Anda bisa membantu', hotline: 'Hotline', share: 'Bagikan peringatan ini', close: 'Tutup',

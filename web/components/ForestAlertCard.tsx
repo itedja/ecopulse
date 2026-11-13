@@ -11,9 +11,8 @@ export default function ForestAlertCard({ alert, help, lang, site, onClose }: Pr
   const [busy, setBusy] = useState(false);
   const province = (lang === 'id' ? alert.province_id_name : alert.province_en) ?? 'Indonesia';
   const fmt = (d: string) => new Date(d).toLocaleDateString(lang === 'en' ? 'en-GB' : 'id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
-  const ha = Number(alert.area_ha ?? 0);
-  const haText = ha >= 1 ? ha.toFixed(ha < 10 ? 1 : 0) : ha.toFixed(2);
   const summary = (lang === 'id' ? alert.summary_id : alert.summary_en) || alert.summary_en;
+  const dates = alert.first_detected === alert.last_detected ? fmt(alert.first_detected) : `${fmt(alert.first_detected)} – ${fmt(alert.last_detected)}`;
 
   const actions = help
     .filter((h) => h.issue_kinds.includes('deforestation') && (h.province_ids.length === 0 || (alert.province_id != null && h.province_ids.includes(alert.province_id))))
@@ -23,9 +22,9 @@ export default function ForestAlertCard({ alert, help, lang, site, onClose }: Pr
     setBusy(true);
     try {
       await shareCanvas((ctx) => drawForestCard(ctx, {
-        title: t.forest.title(province), area: haText, alerts: alert.alert_count, fires: alert.fires_within_10km ?? 0,
-        dates: `${fmt(alert.first_detected)} – ${fmt(alert.last_detected)}`, summary: summary ?? '',
-        labels: { area: t.forest.area, alerts: t.forest.alerts, fires: t.forest.fires }, site,
+        title: t.forest.title(province), alerts: alert.alert_count, fires: alert.fires_within_10km ?? 0,
+        dates, summary: summary ?? '',
+        labels: { alerts: t.forest.alerts, fires: t.forest.fires }, site,
       }), `ecopulse-forest-${alert.grid_lat}_${alert.grid_lon}.png`, `${t.forest.title(province)} · ${site}`);
     } finally { setBusy(false); }
   }
@@ -36,7 +35,7 @@ export default function ForestAlertCard({ alert, help, lang, site, onClose }: Pr
         <div>
           <div className="forest-kicker"><span className="forest-sq" aria-hidden="true" />{t.forest.kicker}</div>
           <h2 className="forest-title">{t.forest.title(province)}</h2>
-          <div className="mono small muted">{fmt(alert.first_detected)} – {fmt(alert.last_detected)} · Global Forest Watch</div>
+          <div className="mono small muted">{dates} · Global Forest Watch</div>
         </div>
         <button className="icon-btn" onClick={onClose} aria-label={t.forest.close}>
           <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
@@ -44,10 +43,10 @@ export default function ForestAlertCard({ alert, help, lang, site, onClose }: Pr
       </div>
 
       <div className="tiles">
-        <div className="tile"><b className="stat">{haText}<span className="unit"> ha</span></b><span className="label">{t.forest.area}</span></div>
         <div className="tile"><b className="stat">{alert.alert_count}</b><span className="label">{t.forest.alerts}</span></div>
         <div className="tile"><b className={`stat ${alert.fires_within_10km ? 'warn' : ''}`}>{alert.fires_within_10km ?? 0}</b><span className="label">{t.forest.fires}</span></div>
       </div>
+      <span className="small muted">{t.forest.pixel}</span>
 
       <div className="sub">
         <span className="h2">{t.forest.what}</span>

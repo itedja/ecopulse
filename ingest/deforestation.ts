@@ -14,7 +14,7 @@ const API = 'https://data-api.globalforestwatch.org';
 const DATASET = 'gfw_integrated_alerts';
 const CLUSTER_DAYS = 30;
 const SUMMARY_MODEL = optionalEnv('NEWS_MODEL') ?? 'claude-haiku-5-5';
-const MAX_SUMMARIES = 30;
+const MAX_SUMMARIES = 60;
 
 const isoDate = (d: Date) => d.toISOString().slice(0, 10);
 const daysAgo = (n: number) => isoDate(new Date(Date.now() - n * 86400_000));
@@ -135,27 +135,27 @@ export function clusterPoints(points: AlertPoint[]) {
   }
   return [...cells.values()].map((c) => ({
     grid_lat: c.grid_lat, grid_lon: c.grid_lon, first_detected: c.first, last_detected: c.last,
-    alert_count: c.n, area_ha: Math.round(c.ha * 100) / 100,
+    alert_count: c.n, area_ha: c.ha > 0 ? Math.round(c.ha * 100) / 100 : null,   // GFW gives no area for point rows: null, never a fake 0
   }));
 }
 
-export function summaryPrompt(items: { i: number; province: string; area_ha: number; alerts: number; first: string; last: string; fires: number; news: string[] }[]) {
+export function summaryPrompt(items: { i: number; province: string; alerts: number; first: string; last: string; fires: number; news: string[] }[]) {
   return `You write short, neutral notes for a public environmental map of Indonesia.
 For each forest-loss cluster below, write exactly 2 factual sentences in English and the same in Bahasa Indonesia.
-Use ONLY the facts given. Say "satellite alerts" (not "illegal" or "deforestation by X"). Never name or accuse any person or company.
+Use ONLY the facts given. Do not state an area or hectares (none is given). Say "satellite alerts" (not "illegal" or "deforestation by X"). Never name or accuse any person or company.
 If there are nearby fires, you may note that cleared land can burn easily in the dry season. Mention related news only as "local news has reported…" when relevant.
 
 Reply with ONLY a JSON array: [{"i":0,"summary_en":"","summary_id":""}]
 
-${items.map((x) => `[${x.i}] Province: ${x.province}. Area flagged: ~${x.area_ha} ha from ${x.alerts} satellite alerts between ${x.first} and ${x.last}. Fire hotspots within 10 km in the last 30 days: ${x.fires}.${x.news.length ? ` Recent local news headlines: ${x.news.map((n) => `"${n}"`).join('; ')}.` : ''}`).join('\n')}`;
+${items.map((x) => `[${x.i}] Province: ${x.province}. ${x.alerts} satellite alerts between ${x.first} and ${x.last}. Fire hotspots within 10 km in the last 30 days: ${x.fires}.${x.news.length ? ` Recent local news headlines: ${x.news.map((n) => `"${n}"`).join('; ')}.` : ''}`).join('\n')}`;
 }
 
 async function summarise(warnings: string[]) {
   const key = optionalEnv('ANTHROPIC_API_KEY');
   if (!key) { warnings.push('ANTHROPIC_API_KEY missing: skipped summaries'); return 0; }
   const { data: todo } = await db().from('deforestation_alerts_public')
-    .select('id, province_id, province_en, area_ha, alert_count, first_detected, last_detected, fires_within_10km')
-    .is('summary_en', null).order('area_ha', { ascending: false }).limit(MAX_SUMMARIES);
+    .select('id, province_id, province_en, alert_count, first_detected, last_detected, fires_within_10km')
+    .is('summary_en', null).order('alert_count', { ascending: false }).limit(MAX_SUMMARIES);
   if (!todo?.length) return 0;
 
   const since = new Date(Date.now() - 30 * 86400_000).toISOString();
@@ -166,7 +166,7 @@ async function summarise(warnings: string[]) {
       const { data: news } = c.province_id
         ? await db().from('news_feed').select('title').contains('province_ids', [c.province_id]).gt('published_at', since).limit(3)
         : { data: [] as { title: string }[] };
-      return { i: j, province: c.province_en ?? 'Indonesia', area_ha: Number(c.area_ha ?? 0), alerts: c.alert_count,
+      return { i: j, province: c.province_en ?? 'Indonesia', alerts: c.alert_count,
         first: c.first_detected, last: c.last_detected, fires: c.fires_within_10km ?? 0, news: (news ?? []).map((n) => n.title) };
     }));
     try {

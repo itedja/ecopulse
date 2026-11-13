@@ -109,8 +109,8 @@ export function drawCityCard(ctx: CanvasRenderingContext2D, o: {
 }
 
 export function drawForestCard(ctx: CanvasRenderingContext2D, o: {
-  title: string; area: string; alerts: number; fires: number; dates: string; summary: string;
-  labels: { area: string; alerts: string; fires: string }; site: string;
+  title: string; alerts: number; fires: number; dates: string; summary: string;
+  labels: { alerts: string; fires: string }; site: string;
 }) {
   base(ctx, o.site);
   ctx.fillStyle = '#8B5E34'; ctx.fillRect(96, 196, 26, 26);
@@ -118,13 +118,13 @@ export function drawForestCard(ctx: CanvasRenderingContext2D, o: {
   ctx.fillStyle = INK; ctx.font = `700 60px ${SANS}`;
   let y = wrap(ctx, o.title, 96, 310, W - 192, 70, 2);
   ctx.fillStyle = MUTED; ctx.font = `500 28px ${MONO}`; ctx.fillText(o.dates, 96, y + 10);
-  // three stats
-  const stats: [string, string, string][] = [[o.area, 'ha', o.labels.area], [String(o.alerts), '', o.labels.alerts], [String(o.fires), '', o.labels.fires]];
-  const colW = (W - 192 - 40) / 3;
+  // two stats
+  const stats: [string, string, string][] = [[String(o.alerts), '', o.labels.alerts], [String(o.fires), '', o.labels.fires]];
+  const colW = (W - 192 - 20) / 2;
   stats.forEach(([v, unit, label], i) => {
     const x = 96 + i * (colW + 20), top = y + 60;
     ctx.strokeStyle = LINE; ctx.lineWidth = 2; roundRect(ctx, x, top, colW, 170, 18); ctx.stroke();
-    ctx.fillStyle = i === 2 && o.fires > 0 ? FIRE : INK; ctx.font = `700 64px ${SANS}`; ctx.fillText(v, x + 24, top + 88);
+    ctx.fillStyle = i === 1 && o.fires > 0 ? FIRE : INK; ctx.font = `700 64px ${SANS}`; ctx.fillText(v, x + 24, top + 88);
     if (unit) { const w = ctx.measureText(v).width; ctx.fillStyle = MUTED; ctx.font = `500 30px ${SANS}`; ctx.fillText(unit, x + 32 + w, top + 88); }
     ctx.fillStyle = MUTED; ctx.font = `500 24px ${SANS}`; wrap(ctx, label, x + 24, top + 130, colW - 40, 28, 2);
   });

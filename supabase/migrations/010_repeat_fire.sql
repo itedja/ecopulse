@@ -170,7 +170,7 @@ end $$;
 revoke execute on function refresh_repeat_fire() from public, anon, authenticated;
 
 -- Province ranking: repeat-burning cells (3+ of 5 years) per province, with approximate area.
-create or replace view repeat_fire_provinces as
+create or replace view repeat_fire_provinces with (security_invoker = true) as
 select p.id, p.slug, p.name_en, p.name_id,
        count(*) filter (where c.n_years >= 3)              as cells_3plus,
        count(*) filter (where c.n_years >= 4)              as cells_4plus,

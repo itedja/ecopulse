@@ -15,9 +15,10 @@ test('Alert points group onto a ~1 km grid with first/last dates and area', () =
 });
 
 test('Summary prompt forbids accusations and carries the facts', () => {
-  const p = summaryPrompt([{ i: 0, province: 'Central Kalimantan', area_ha: 12.5, alerts: 900, first: '2026-10-14', last: '2026-11-09', fires: 23, news: ['Peat fires flare'] }]);
+  const p = summaryPrompt([{ i: 0, province: 'Central Kalimantan', alerts: 900, first: '2026-10-14', last: '2026-11-09', fires: 23, news: ['Peat fires flare'] }]);
   assert.ok(p.includes('Never name or accuse'));
-  assert.ok(p.includes('~12.5 ha') && p.includes('23') && p.includes('"Peat fires flare"'));
+  assert.ok(p.includes('900 satellite alerts') && p.includes('23') && p.includes('"Peat fires flare"'));
+  assert.ok(!/~[\d.]+ ha/.test(p) && p.includes('Do not state an area'));
 });
 
 test('GFW key: create when missing, keep when valid, renew 14 days before expiry', () => {

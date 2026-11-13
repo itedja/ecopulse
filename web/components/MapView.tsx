@@ -178,8 +178,8 @@ export default function MapView({ aq, stations, fires, repeat, selectedRepeat, o
         id: 'forest-sq', type: 'symbol', source: 'forest',
         layout: {
           'icon-image': ['case', ['get', 'selected'], 'sq-sel', 'sq'], 'icon-allow-overlap': true,
-          'icon-size': ['interpolate', ['linear'], ['get', 'ha'], 0, 0.6, 5, 0.9, 50, 1.4],
-          'symbol-sort-key': ['get', 'ha'],
+          'icon-size': ['interpolate', ['linear'], ['get', 'n'], 1, 0.6, 20, 0.9, 200, 1.4],
+          'symbol-sort-key': ['get', 'n'],
         },
       });
       m.addLayer({
@@ -308,7 +308,7 @@ export default function MapView({ aq, stations, fires, repeat, selectedRepeat, o
       (m.getSource('alerts') as GeoJSONSource)?.setData(fc(alerts.filter((a) => a.area).map((a) =>
         ({ type: 'Feature', geometry: a.area as GeoJSON.Geometry, properties: { headline: (lang === 'id' ? a.headline_id : a.headline_en) ?? a.headline_en ?? '' } }))));
       (m.getSource('forest') as GeoJSONSource)?.setData(fc(forests.map((f) =>
-        pt(f.grid_lon, f.grid_lat, { id: f.id, ha: Number(f.area_ha ?? 0), selected: f.id === selectedForestId }))));
+        pt(f.grid_lon, f.grid_lat, { id: f.id, n: f.alert_count, selected: f.id === selectedForestId }))));
       (m.getSource('reports') as GeoJSONSource)?.setData(fc(reports.map((r) =>
         pt(r.lon_public, r.lat_public, {
           id: r.id, selected: r.id === selectedReportId,

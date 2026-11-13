@@ -67,7 +67,7 @@ async function loadAll(): Promise<Data> {
       .gt('occurred_at', new Date(Date.now() - 7 * 86400_000).toISOString()).order('occurred_at', { ascending: false }).limit(50),
     supabase.from('news_feed').select('*').order('published_at', { ascending: false }).limit(30),
     supabase.from('province_rankings_7d').select('*'),
-    supabase.from('deforestation_alerts_public').select('*').order('area_ha', { ascending: false }).limit(1500),
+    supabase.from('deforestation_alerts_public').select('*').order('alert_count', { ascending: false }).limit(1500),
     supabase.from('help_actions').select('*').eq('is_active', true).order('priority'),
     supabase.from('reports_public').select('*').order('created_at', { ascending: false }).limit(500),
     supabase.from('leaderboard_users').select('nickname, points, rank_key, overall_rank').order('overall_rank').limit(20),
