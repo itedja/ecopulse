@@ -16,6 +16,7 @@ import { INDONESIA_BBOX, inIndonesiaBox } from './lib/geo.ts';
 const SENSORS = ['SNPP', 'NOAA20'] as const;
 const LOCAL_OFFSET_MS = 7 * 3600_000;   // Jakarta time, the same day boundary the database uses
 const DAY_MS = 86400_000;
+export const MAX_DAYS = 5;          // FIRMS area API: "Invalid day range. Expects [1..5]"
 
 export type Detection = { cx: number; cy: number; yr: number; doy: number; month: number; frp: number | null };
 export type ParseStats = { kept: number; lowConf: number; nonVegetation: number; outside: number; hasType: boolean };
@@ -75,7 +76,7 @@ export function addDetections(map: Map<string, CellYear>, rows: Detection[]): vo
 
 export const bitString = (days: Uint8Array) => Array.from(days, (b) => (b ? '1' : '0')).join('');
 
-// Splits [from, to] into requests of at most 10 days, using the archive (SP) up to the last day
+// Splits [from, to] into requests of at most 5 days (NASA's limit for this API), using the archive (SP) up to the last day
 // NASA has published it and the near-real-time feed (NRT) after that.
 export type Window = { source: string; start: string; days: number };
 export function planWindows(sensor: string, from: string, to: string, spMax: string | null): Window[] {
@@ -86,7 +87,7 @@ export function planWindows(sensor: string, from: string, to: string, spMax: str
   let d = Date.parse(from);
   while (d <= end) {
     const useSp = d <= spEnd;
-    const limit = Math.min(end, useSp ? spEnd : end, d + 9 * DAY_MS);
+    const limit = Math.min(end, useSp ? spEnd : end, d + (MAX_DAYS - 1) * DAY_MS);
     out.push({ source: `VIIRS_${sensor}_${useSp ? 'SP' : 'NRT'}`, start: iso(d), days: Math.round((limit - d) / DAY_MS) + 1 });
     d = limit + DAY_MS;
   }
@@ -153,7 +154,7 @@ async function main() {
           totals.kept += stats.kept; totals.lowConf += stats.lowConf; totals.nonVegetation += stats.nonVegetation; totals.outside += stats.outside;
           totals.hasType ||= stats.hasType;
           addDetections(map, rows);
-          await sleep(1200);   // stay well inside NASA's request limits
+          await sleep(800);    // stay well inside NASA's request limits
         }
       }
       const n = await flush(map);

@@ -56,14 +56,15 @@ test('cell grid: 0.02° steps, no floating-point off-by-one at exact boundaries'
   assert.deepEqual(cellOf(104.51, -3.49), { cx: 5225, cy: -175 });
 });
 
-test('windows: archive up to the last published day, then near-real-time, max 10 days each', () => {
-  const w = planWindows('SNPP', '2026-01-01', '2026-01-25', '2026-01-14');
+test('windows: archive up to the last published day, then near-real-time, max 5 days each', () => {
+  const w = planWindows('SNPP', '2026-01-01', '2026-01-17', '2026-01-08');
   assert.deepEqual(w, [
-    { source: 'VIIRS_SNPP_SP', start: '2026-01-01', days: 10 },
-    { source: 'VIIRS_SNPP_SP', start: '2026-01-11', days: 4 },
-    { source: 'VIIRS_SNPP_NRT', start: '2026-01-15', days: 10 },
-    { source: 'VIIRS_SNPP_NRT', start: '2026-01-25', days: 1 },
+    { source: 'VIIRS_SNPP_SP', start: '2026-01-01', days: 5 },
+    { source: 'VIIRS_SNPP_SP', start: '2026-01-06', days: 3 },
+    { source: 'VIIRS_SNPP_NRT', start: '2026-01-09', days: 5 },
+    { source: 'VIIRS_SNPP_NRT', start: '2026-01-14', days: 4 },
   ]);
+  assert.ok(planWindows('SNPP', '2023-01-01', '2023-12-31', null).every((x) => x.days <= 5));
   const total = planWindows('NOAA20', '2023-01-01', '2023-12-31', '2025-06-30').reduce((s, x) => s + x.days, 0);
   assert.equal(total, 365);
   assert.ok(planWindows('NOAA20', '2026-01-01', '2026-01-05', null).every((x) => x.source.endsWith('_NRT')));
