@@ -12,6 +12,11 @@ export default function ForestAlertCard({ alert, help, lang, site, onClose }: Pr
   const province = (lang === 'id' ? alert.province_id_name : alert.province_en) ?? 'Indonesia';
   const fmt = (d: string) => new Date(d).toLocaleDateString(lang === 'en' ? 'en-GB' : 'id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
   const summary = (lang === 'id' ? alert.summary_id : alert.summary_en) || alert.summary_en;
+  // When there is no AI note yet, state the same facts plainly (no AI needed for these).
+  const fires = alert.fires_within_10km ?? 0;
+  const facts = lang === 'id'
+    ? `Terdapat ${alert.alert_count.toLocaleString('id-ID')} peringatan satelit di ${province} pada ${alert.first_detected === alert.last_detected ? fmt(alert.first_detected) : `${fmt(alert.first_detected)} – ${fmt(alert.last_detected)}`}. ${fires ? `${fires} titik api terdeteksi dalam radius 10 km dalam 30 hari terakhir.` : 'Tidak ada titik api dalam radius 10 km dalam 30 hari terakhir.'}`
+    : `There ${alert.alert_count === 1 ? 'was 1 satellite alert' : `were ${alert.alert_count.toLocaleString('en-US')} satellite alerts`} in ${province} ${alert.first_detected === alert.last_detected ? `on ${fmt(alert.first_detected)}` : `between ${fmt(alert.first_detected)} and ${fmt(alert.last_detected)}`}. ${fires ? `${fires} fire hotspot${fires === 1 ? ' was' : 's were'} detected within 10 km in the last 30 days.` : 'No fire hotspots were detected within 10 km in the last 30 days.'}`;
   const dates = alert.first_detected === alert.last_detected ? fmt(alert.first_detected) : `${fmt(alert.first_detected)} – ${fmt(alert.last_detected)}`;
 
   const actions = help
@@ -23,7 +28,7 @@ export default function ForestAlertCard({ alert, help, lang, site, onClose }: Pr
     try {
       await shareCanvas((ctx) => drawForestCard(ctx, {
         title: t.forest.title(province), alerts: alert.alert_count, fires: alert.fires_within_10km ?? 0,
-        dates, summary: summary ?? '',
+        dates, summary: summary ?? facts,
         labels: { alerts: t.forest.alerts, fires: t.forest.fires }, site,
       }), `ecopulse-forest-${alert.grid_lat}_${alert.grid_lon}.png`, `${t.forest.title(province)} · ${site}`);
     } finally { setBusy(false); }
@@ -50,7 +55,7 @@ export default function ForestAlertCard({ alert, help, lang, site, onClose }: Pr
 
       <div className="sub">
         <span className="h2">{t.forest.what}</span>
-        <p className="body">{summary ?? t.forest.pending}</p>
+        <p className="body">{summary ?? facts}</p>
         {summary && <span className="mono small muted">{t.forest.aiNote}</span>}
       </div>
 
