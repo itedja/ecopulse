@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseArchiveCsv, addDetections, bitString, planWindows, parseAvailability, cellOf, type CellYear } from './fire-history.ts';
+import { parseArchiveCsv, addDetections, addFlags, type StaticCount, bitString, planWindows, parseAvailability, cellOf, type CellYear } from './fire-history.ts';
 
 const HEAD = 'latitude,longitude,bright_ti4,scan,track,acq_date,acq_time,satellite,instrument,confidence,version,bright_ti5,frp,daynight,type';
 
@@ -11,9 +11,10 @@ test('archive CSV: keeps vegetation fires, drops low confidence, static sources 
     '-6.01,106.02,360,0.4,0.4,2023-09-10,0542,N,VIIRS,n,2,290,40,D,2',
     '35.0,139.0,330,0.4,0.4,2023-09-10,0542,N,VIIRS,h,2,290,5,D,0',
   ].join('\n');
-  const { rows, stats } = parseArchiveCsv(csv);
+  const { rows, flags, stats } = parseArchiveCsv(csv);
   assert.equal(rows.length, 1);
   assert.deepEqual(stats, { kept: 1, lowConf: 1, nonVegetation: 1, outside: 1, hasType: true });
+  assert.deepEqual(flags, [{ ...cellOf(106.02, -6.01), type: 2 }]);
   assert.equal(rows[0].frp, 12.5);
   assert.deepEqual({ cx: rows[0].cx, cy: rows[0].cy }, cellOf(104.51, -3.49));
 });
@@ -75,4 +76,26 @@ test('data availability CSV is read by column name', () => {
   assert.equal(a.VIIRS_SNPP_SP.max, '2026-06-30');
   assert.equal(a.VIIRS_SNPP_NRT.min, '2026-04-01');
   assert.throws(() => parseAvailability('Invalid MAP_KEY'), /Unexpected/);
+});
+
+test('NASA labels: volcano and fixed-source detections are flagged per cell, whatever their confidence', () => {
+  const csv = [HEAD,
+    '-8.108,112.922,367,0.4,0.4,2023-05-01,1800,N,VIIRS,l,2,300,30,N,1',
+    '-8.108,112.922,367,0.4,0.4,2023-05-02,1800,N,VIIRS,h,2,300,30,N,1',
+    '-6.01,106.02,360,0.4,0.4,2023-09-10,0542,N,VIIRS,n,2,290,40,D,2',
+    '1.70,101.40,360,0.4,0.4,2023-09-10,0542,N,VIIRS,n,2,290,40,D,3',
+  ].join('\n');
+  const { rows, flags, stats } = parseArchiveCsv(csv);
+  assert.equal(rows.length, 0);
+  assert.equal(stats.lowConf, 0);
+  assert.equal(stats.nonVegetation, 4);
+  const map = new Map<string, StaticCount>();
+  addFlags(map, flags);
+  assert.deepEqual(map.get(`${cellOf(112.922, -8.108).cx},${cellOf(112.922, -8.108).cy}`), { ...cellOf(112.922, -8.108), volcano: 2, other: 0 });
+  assert.equal([...map.values()].reduce((a, c) => a + c.other, 0), 2);
+});
+
+test('near-real-time CSV (no type column) produces no flags', () => {
+  const csv = HEAD.replace(',type', '') + '\n-6.01,106.02,330,0.4,0.4,2026-09-01,0100,N,VIIRS,n,2,290,3,D';
+  assert.deepEqual(parseArchiveCsv(csv).flags, []);
 });

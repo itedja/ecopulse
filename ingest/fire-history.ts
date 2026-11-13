@@ -4,6 +4,9 @@
 // had a detection. Uses the quality-checked archive ("SP") where NASA has published it and the
 // near-real-time feed ("NRT") for the most recent months. Safe to run again: days are merged with OR.
 //
+// Also records NASA's own "not a vegetation fire" labels (volcano, smelter, refinery, gas flare) per
+// cell, so the database can leave those places out in every year.
+//
 // Run from GitHub Actions (needs FIRMS_MAP_KEY and the Supabase service key):
 //   YEARS=5 npm run ingest:fire-history
 import { isMain } from './lib/main.ts';
@@ -20,16 +23,19 @@ export const MAX_DAYS = 5;          // FIRMS area API: "Invalid day range. Expec
 
 export type Detection = { cx: number; cy: number; yr: number; doy: number; month: number; frp: number | null };
 export type ParseStats = { kept: number; lowConf: number; nonVegetation: number; outside: number; hasType: boolean };
+// A detection NASA labelled as not a vegetation fire: 1 = active volcano, 2 = other static land source, 3 = offshore.
+export type Flag = { cx: number; cy: number; type: 1 | 2 | 3 };
 
 export const cellOf = (lon: number, lat: number) => ({ cx: Math.floor(lon * 50), cy: Math.floor(lat * 50) });
 
 // Parses a FIRMS area CSV. Keeps nominal/high confidence detections inside the Indonesia box.
 // If NASA includes the "type" column (archive data), keeps only type 0 = presumed vegetation fire;
-// 1 = volcano, 2 = other static land source (e.g. industry), 3 = offshore.
-export function parseArchiveCsv(csv: string): { rows: Detection[]; stats: ParseStats } {
+// 1 = volcano, 2 = other static land source (e.g. industry), 3 = offshore. Those are returned as
+// "flags" (whatever their confidence), so the place can be left out in every year.
+export function parseArchiveCsv(csv: string): { rows: Detection[]; flags: Flag[]; stats: ParseStats } {
   const lines = csv.trim().split(/\r?\n/);
   const stats: ParseStats = { kept: 0, lowConf: 0, nonVegetation: 0, outside: 0, hasType: false };
-  if (lines.length < 1 || !lines[0]) return { rows: [], stats };
+  if (lines.length < 1 || !lines[0]) return { rows: [], flags: [], stats };
   const header = lines[0].split(',').map((h) => h.trim());
   if (!header.includes('latitude')) throw new Error(`FIRMS did not return CSV: ${lines[0].slice(0, 120)}`);
   const c = (n: string) => header.indexOf(n);
@@ -38,14 +44,17 @@ export function parseArchiveCsv(csv: string): { rows: Detection[]; stats: ParseS
   stats.hasType = iType >= 0;
 
   const rows: Detection[] = [];
+  const flags: Flag[] = [];
   for (const line of lines.slice(1)) {
     if (!line.trim()) continue;
     const f = line.split(',');
     const lat = Number(f[iLat]), lon = Number(f[iLon]);
     if (!Number.isFinite(lat) || !Number.isFinite(lon) || !inIndonesiaBox(lat, lon)) { stats.outside++; continue; }
+    const type = iType >= 0 ? (f[iType] ?? '').trim() : '0';
+    if (type === '1' || type === '2' || type === '3') { flags.push({ ...cellOf(lon, lat), type: Number(type) as 1 | 2 | 3 }); stats.nonVegetation++; continue; }
+    if (type !== '0') { stats.nonVegetation++; continue; }
     const conf = (f[iConf] ?? '').trim().toLowerCase();
     if (conf !== 'n' && conf !== 'h' && conf !== 'nominal' && conf !== 'high') { stats.lowConf++; continue; }
-    if (iType >= 0 && (f[iType] ?? '').trim() !== '0') { stats.nonVegetation++; continue; }
 
     const t = (f[iTime] ?? '').trim().padStart(4, '0');
     const utc = Date.parse(`${f[iDate]}T${t.slice(0, 2)}:${t.slice(2, 4)}:00Z`);
@@ -57,7 +66,7 @@ export function parseArchiveCsv(csv: string): { rows: Detection[]; stats: ParseS
     rows.push({ ...cellOf(lon, lat), yr, doy, month: local.getUTCMonth() + 1, frp });
     stats.kept++;
   }
-  return { rows, stats };
+  return { rows, flags, stats };
 }
 
 // One cell-year: a 366-bit day set, a 12-bit month set, the strongest fire.
@@ -71,6 +80,17 @@ export function addDetections(map: Map<string, CellYear>, rows: Detection[]): vo
     cell.days[r.doy - 1] = 1;
     cell.months |= 1 << (r.month - 1);
     if (r.frp != null && (cell.frp == null || r.frp > cell.frp)) cell.frp = r.frp;
+  }
+}
+
+// Per cell: how many detections NASA labelled volcano / other fixed heat source.
+export type StaticCount = { cx: number; cy: number; volcano: number; other: number };
+export function addFlags(map: Map<string, StaticCount>, flags: Flag[]): void {
+  for (const f of flags) {
+    const k = `${f.cx},${f.cy}`;
+    let c = map.get(k);
+    if (!c) { c = { cx: f.cx, cy: f.cy, volcano: 0, other: 0 }; map.set(k, c); }
+    if (f.type === 1) c.volcano++; else c.other++;
   }
 }
 
@@ -138,6 +158,7 @@ async function main() {
     const totals: ParseStats = { kept: 0, lowConf: 0, nonVegetation: 0, outside: 0, hasType: false };
     const gaps: string[] = [];
     const seenHeader = new Set<string>();
+    const staticMap = new Map<string, StaticCount>();
 
     for (let yr = firstYear; yr <= lastYear; yr++) {
       const map = new Map<string, CellYear>();
@@ -149,7 +170,8 @@ async function main() {
           const url = `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${key}/${w.source}/${area}/${w.days}/${w.start}`;
           const csv = await (await fetchRetry(url, {}, { timeoutMs: 180_000, retries: 4 })).text();
           requests++;
-          const { rows, stats } = parseArchiveCsv(csv);
+          const { rows, flags, stats } = parseArchiveCsv(csv);
+          addFlags(staticMap, flags);
           if (!seenHeader.has(w.source)) { seenHeader.add(w.source); console.log(`  ${w.source} columns: ${csv.split('\n')[0]}`); }
           totals.kept += stats.kept; totals.lowConf += stats.lowConf; totals.nonVegetation += stats.nonVegetation; totals.outside += stats.outside;
           totals.hasType ||= stats.hasType;
@@ -162,12 +184,19 @@ async function main() {
       console.log(`  ${yr}: ${map.size} cell-years (${n} merged)`);
     }
 
-    // The map is rebuilt by the database's own nightly job (pg_cron, migration 013); the API's time
-    // limit is often too short for it, so a timeout here is only a note.
-    const { data: cells, error } = await db().rpc('refresh_repeat_fire');
-    if (error) gaps.push(`map rebuild left to the nightly database job (${error.message})`);
+    // NASA's volcano / fixed-heat-source labels, per cell (only the archive years carry them).
+    const statics = [...staticMap.values()];
+    for (let i = 0; i < statics.length; i += 1000) {
+      const { error } = await db().rpc('merge_fire_static_cells', { p_rows: statics.slice(i, i + 1000) });
+      if (error) throw new Error(`merge_fire_static_cells: ${error.message}`);
+    }
+    const flagged = statics.filter((c) => c.volcano + c.other >= 2);
+    console.log(`  NASA-labelled non-vegetation cells: ${statics.length} (${flagged.length} with 2+ labels; volcano ${flagged.filter((c) => c.volcano > 0).length})`);
+
+    // The database rebuilds the public map itself within 10 minutes (pg_cron, migration 014).
+    const { error } = await db().rpc('mark_repeat_fire_dirty');
+    if (error) gaps.push(`could not mark the map for rebuild (${error.message}); the nightly job will do it`);
     console.log(`  requests ${requests}; detections kept ${totals.kept}, low confidence ${totals.lowConf}, non-vegetation ${totals.nonVegetation} (type column ${totals.hasType ? 'present' : 'absent'}), outside box ${totals.outside}`);
-    if (!error) console.log(`  repeat-fire cells (2+ years) after refresh: ${cells}`);
     return { rows: written, partial: gaps.length ? gaps.join(' | ').slice(0, 500) : undefined };
   });
 }
