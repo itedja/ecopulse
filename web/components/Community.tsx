@@ -5,6 +5,8 @@ import { T, type Lang } from '@/lib/i18n';
 import { errorCode, kmBetween, rankProgress, span } from '@/lib/community';
 import ReportForm from './ReportForm';
 import HelpGuide from './HelpGuide';
+import LegalNote from './LegalNote';
+import { PROTECTED } from '@/lib/legal';
 import { KINDS, type Kind } from '@/lib/community';
 
 type Props = {
@@ -71,6 +73,8 @@ export default function Community({ lang, now, reports, leaders, userId, profile
           {profile && <span className="mono small muted">{t.left(profile.reports_left_today)}</span>}
         </section>
       )}
+
+      <LegalNote note={PROTECTED} lang={lang} open={writing} />
 
       {!writing && (
         <HelpGuide lang={lang} onReport={(k) => {

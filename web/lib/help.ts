@@ -4,7 +4,7 @@ import type { Lang } from './i18n';
 
 export type HelpLink = { kind: 'web' | 'tel' | 'wa' | 'sms' | 'mail'; label: string; value: string };
 export type HelpItem = {
-  role: 'report' | 'join' | 'donate' | 'daily';
+  role: 'report' | 'legal' | 'join' | 'donate' | 'daily';
   title: Record<Lang, string>;
   body: Record<Lang, string>;
   links?: HelpLink[];
@@ -64,6 +64,23 @@ const GAKKUM_FOREST: HelpItem = {
   ],
 };
 
+
+// Free legal aid. YLBHI's own site: 18 LBH offices in 18 provinces, legal aid for people who are poor,
+// unfamiliar with the law, or victims of rights violations. LBH Jakarta represented the citizens
+// in the Jakarta air-pollution lawsuit.
+const LEGAL_AID: HelpItem = {
+  role: 'legal',
+  title: { en: 'Need a lawyer? Free legal aid (LBH)', id: 'Butuh pengacara? Bantuan hukum gratis (LBH)' },
+  body: {
+    en: 'If you are threatened, sued or reported to the police over an environmental problem, or your community is harmed, the LBH network gives free legal aid. It has offices in 18 provinces.',
+    id: 'Jika Anda diancam, digugat, atau dilaporkan ke polisi karena masalah lingkungan, atau warga Anda dirugikan, jaringan LBH memberi bantuan hukum gratis. Kantornya ada di 18 provinsi.',
+  },
+  links: [
+    { kind: 'web', label: 'LBH Jakarta', value: 'https://bantuanhukum.or.id/' },
+    { kind: 'web', label: 'YLBHI (LBH di 18 provinsi)', value: 'https://ylbhi.or.id/kontak/' },
+  ],
+};
+
 export const HELP: HelpIssue[] = [
   {
     key: 'fire_smoke',
@@ -94,6 +111,7 @@ export const HELP: HelpIssue[] = [
           { kind: 'web', label: 'Borneo Nature Foundation', value: 'https://www.borneonaturefoundation.org/' },
         ],
       },
+      LEGAL_AID,
       {
         role: 'daily',
         title: { en: 'Every day', id: 'Sehari-hari' },
@@ -118,6 +136,7 @@ export const HELP: HelpIssue[] = [
         },
         links: [{ kind: 'web', label: 'walhi.or.id', value: 'https://www.walhi.or.id/' }],
       },
+      LEGAL_AID,
       {
         role: 'daily',
         title: { en: 'Stay safe', id: 'Utamakan keselamatan' },
@@ -135,6 +154,7 @@ export const HELP: HelpIssue[] = [
       LAPOR,
       SUNGAI_WATCH,
       PANDAWARA,
+      LEGAL_AID,
       {
         role: 'daily',
         title: { en: 'Every day', id: 'Sehari-hari' },
@@ -152,6 +172,7 @@ export const HELP: HelpIssue[] = [
       LAPOR,
       PANDAWARA,
       SUNGAI_WATCH,
+      LEGAL_AID,
       {
         role: 'daily',
         title: { en: 'Every day', id: 'Sehari-hari' },
@@ -203,6 +224,7 @@ export const HELP: HelpIssue[] = [
         },
         links: [{ kind: 'web', label: 'bicaraudara.id', value: 'https://bicaraudara.id/' }],
       },
+      LEGAL_AID,
       {
         role: 'daily',
         title: { en: 'Every day', id: 'Sehari-hari' },
@@ -232,6 +254,7 @@ export const HELP: HelpIssue[] = [
 
 export const ROLE_LABEL: Record<HelpItem['role'], Record<Lang, string>> = {
   report: { en: 'Report', id: 'Lapor' },
+  legal: { en: 'Legal aid', id: 'Bantuan hukum' },
   join: { en: 'Join', id: 'Ikut' },
   donate: { en: 'Donate', id: 'Donasi' },
   daily: { en: 'Every day', id: 'Sehari-hari' },

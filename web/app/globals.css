@@ -271,3 +271,17 @@ button { font: inherit; color: inherit; }
 .guide-link:hover { border-color: var(--ink); }
 .role { align-self: flex-start; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
 .role-report { color: var(--ink); }
+
+/* Legal notes (rights, court rulings) */
+.legal { border: 1px solid var(--line); border-radius: 12px; padding: 0 14px; background: var(--surface); }
+.legal summary { display: flex; align-items: center; gap: 8px; min-height: 44px; cursor: pointer; list-style: none; font-size: 14px; font-weight: 600; }
+.legal summary::-webkit-details-marker { display: none; }
+.legal summary::after { content: '+'; margin-left: auto; font-size: 18px; font-weight: 400; color: var(--muted); }
+.legal[open] summary::after { content: '–'; }
+.legal-lead { margin: 0 0 8px; font-size: 14px; line-height: 1.5; }
+.legal-points { margin: 0 0 8px; padding-left: 18px; font-size: 14px; line-height: 1.5; color: var(--slate); }
+.legal-points li + li { margin-top: 4px; }
+.legal-src { margin: 0 0 12px; color: var(--muted); line-height: 1.6; }
+.legal-src a { color: inherit; }
+.legal-stack { display: flex; flex-direction: column; gap: 8px; }
+.role-legal { color: #1D4ED8; }

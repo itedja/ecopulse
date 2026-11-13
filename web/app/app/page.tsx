@@ -3,6 +3,8 @@ import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase, supabaseConfigured, type City, type CityAq, type Hotspot, type Forecast, type Wind, type Alert, type Quake, type NewsItem, type ForestAlert, type HelpAction, type Report, type Leader, type Station } from '@/lib/supabase';
 import { T, type Lang, cityTimeZone, hhmm } from '@/lib/i18n';
+import LegalNote from '@/components/LegalNote';
+import { CLEAN_AIR, JAKARTA_CASE, JAKARTA_AREA } from '@/lib/legal';
 import { category, advice, cleanestWindow, calibrateForecast, pm25ToAqi, type Category } from '@/lib/aqi';
 import { upwindFires, distanceKm, compass } from '@/lib/smoke';
 import type { LayerKey } from '@/components/MapView';
@@ -298,6 +300,12 @@ export default function Home() {
                   <span>{t.updated(minutesOld)} · {t.stations(reading.station_count)}</span>
                   <span>OpenAQ · WAQI</span>
                 </div>
+                {cat.key !== 'good' && cat.key !== 'moderate' && (
+                  <div className="legal-stack">
+                    <LegalNote note={CLEAN_AIR} lang={lang} />
+                    {city && JAKARTA_AREA.has(city.slug) && <LegalNote note={JAKARTA_CASE} lang={lang} />}
+                  </div>
+                )}
                 <button className="btn-outline" onClick={shareCity} disabled={sharing}>
                   <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /><path d="m16 6-4-4-4 4" /><path d="M12 2v13" /></svg>
                   {sharing ? t.sharing : `${t.share} ${name(city!)}`}
