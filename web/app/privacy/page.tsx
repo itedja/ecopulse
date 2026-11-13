@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 
-export const metadata: Metadata = { title: 'Privacy · EcoPulse Indonesia' };
+export const metadata: Metadata = { title: 'Privasi · EcoPulse Indonesia', alternates: { canonical: '/privacy' } };
 
 const CONTACT = 'ecopulseindonesia@gmail.com';
 

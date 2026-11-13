@@ -8,7 +8,17 @@ export const metadata: Metadata = {
   description: 'Kualitas udara, titik api, kehilangan hutan, peringatan cuaca, dan laporan warga di seluruh Indonesia. Gratis dan otomatis.',
   manifest: '/manifest.webmanifest',
   appleWebApp: { capable: true, title: 'EcoPulse', statusBarStyle: 'default' },
-  icons: { icon: '/icon.svg', apple: '/apple-touch-icon.png' },
+  // Google search shows a square PNG/ICO most reliably (multiples of 48 px); browsers can use the SVG.
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: '48x48' },
+      { url: '/icon-96.png', sizes: '96x96', type: 'image/png' },
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
+    apple: '/apple-touch-icon.png',
+  },
+  openGraph: { siteName: 'EcoPulse Indonesia' },
 };
 
 export const viewport: Viewport = { themeColor: '#0E1116', width: 'device-width', initialScale: 1 };
