@@ -6,6 +6,7 @@ import { category } from '@/lib/aqi';
 import { drawTodayCard, shareCanvas } from '@/lib/shareCard';
 import HelpGuide from '@/components/HelpGuide';
 import MiniMap from '@/components/MiniMap';
+import CountUp from '@/components/CountUp';
 
 const REFRESH_MS = 2 * 60_000;
 const CONTACT = 'ecopulseindonesia@gmail.com';
@@ -64,7 +65,6 @@ export default function Landing() {
   const place = (p: Place | null | undefined) => (p ? p[lang] : '–');
   const mins = live?.updatedAt ? Math.max(0, Math.round((now - new Date(live.updatedAt).getTime()) / 60_000)) : null;
   const airCat = category(live?.worstAir?.aqi);
-  const num = (v: number | undefined) => (live ? fmt(v ?? 0) : '–');
 
   async function install() {
     if (!installEvt) return;
@@ -138,11 +138,11 @@ export default function Landing() {
       <section className="lp-wrap">
         <h2 className="lp-eyebrow">{t.nowTitle}</h2>
         <div className="lp-stats">
-          <div className="lp-stat"><b style={{ color: '#C2410C' }}>{num(live?.fires7d)}</b><span>{live?.firesSince ? t.firesSince(new Date(live.firesSince).toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-GB', { day: 'numeric', month: 'short', timeZone: 'Asia/Jakarta' })) : t.fires}</span></div>
-          <div className="lp-stat"><b>{live?.worstAir ? live.worstAir.aqi : '–'}</b>
+          <div className="lp-stat"><b style={{ color: '#C2410C' }}><CountUp value={live ? live.fires7d ?? 0 : null} format={fmt} /></b><span>{live?.firesSince ? t.firesSince(new Date(live.firesSince).toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-GB', { day: 'numeric', month: 'short', timeZone: 'Asia/Jakarta' })) : t.fires}</span></div>
+          <div className="lp-stat"><b><CountUp value={live?.worstAir ? live.worstAir.aqi : null} format={String} /></b>
             <span>{t.air(place(live?.worstAir))}{airCat && <> · <em style={{ color: airCat.key === 'good' ? '#1E7A45' : airCat.key === 'moderate' ? '#8A6A00' : '#B42318' }}>{T[lang].cats[airCat.key]}</em></>}</span></div>
-          <div className="lp-stat"><b style={{ color: '#8B5E34' }}>{num(live?.forestAlerts)}</b><span>{t.forest}</span></div>
-          <div className="lp-stat"><b style={{ color: '#0F766E' }}>{num(live?.reports)}</b><span>{t.reports}</span></div>
+          <div className="lp-stat"><b style={{ color: '#8B5E34' }}><CountUp value={live ? live.forestAlerts ?? 0 : null} format={fmt} /></b><span>{t.forest}</span></div>
+          <div className="lp-stat"><b style={{ color: '#0F766E' }}><CountUp value={live ? live.reports ?? 0 : null} format={fmt} /></b><span>{t.reports}</span></div>
         </div>
         <p className="lp-src mono">{t.sources}</p>
       </section>
