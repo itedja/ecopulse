@@ -145,7 +145,7 @@ async function main() {
       for (const s of SENSORS) {
         const nrtMin = avail[`VIIRS_${s}_NRT`]?.min;
         for (const w of planWindows(s, from, to, avail[`VIIRS_${s}_SP`]?.max ?? null)) {
-          if (w.source.endsWith('_NRT') && nrtMin && w.start < nrtMin) { gaps.push(`${w.source} ${w.start}`); continue; }
+          if (w.source.endsWith('_NRT') && nrtMin && w.start < nrtMin) { gaps.push(`no NRT data: ${w.source} ${w.start}`); continue; }
           const url = `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${key}/${w.source}/${area}/${w.days}/${w.start}`;
           const csv = await (await fetchRetry(url, {}, { timeoutMs: 180_000, retries: 4 })).text();
           requests++;
@@ -162,11 +162,13 @@ async function main() {
       console.log(`  ${yr}: ${map.size} cell-years (${n} merged)`);
     }
 
+    // The map is rebuilt by the database's own nightly job (pg_cron, migration 013); the API's time
+    // limit is often too short for it, so a timeout here is only a note.
     const { data: cells, error } = await db().rpc('refresh_repeat_fire');
-    if (error) throw new Error(`refresh_repeat_fire: ${error.message}`);
+    if (error) gaps.push(`map rebuild left to the nightly database job (${error.message})`);
     console.log(`  requests ${requests}; detections kept ${totals.kept}, low confidence ${totals.lowConf}, non-vegetation ${totals.nonVegetation} (type column ${totals.hasType ? 'present' : 'absent'}), outside box ${totals.outside}`);
-    console.log(`  repeat-fire cells (2+ years) after refresh: ${cells}`);
-    return { rows: written, partial: gaps.length ? `no NRT data for ${gaps.length} windows, first: ${gaps[0]}` : undefined };
+    if (!error) console.log(`  repeat-fire cells (2+ years) after refresh: ${cells}`);
+    return { rows: written, partial: gaps.length ? gaps.join(' | ').slice(0, 500) : undefined };
   });
 }
 
