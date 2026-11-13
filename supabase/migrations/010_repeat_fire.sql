@@ -190,3 +190,8 @@ returns text language sql stable security definer set search_path = public as $$
   select coalesce(string_agg(cx || ',' || cy || ',' || n_years, ';'), '') from repeat_fire_cells;
 $$;
 grant execute on function repeat_fire_points() to anon, authenticated;
+
+-- The background jobs (service role) need these; "revoke ... from public" above also removed theirs.
+grant all on fire_cell_years, repeat_fire_cells, repeat_fire_meta to service_role;
+grant execute on function merge_fire_cell_years(jsonb) to service_role;
+grant execute on function refresh_repeat_fire() to service_role;
