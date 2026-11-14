@@ -111,3 +111,11 @@ test('Emitter list on the city card labels tonnages as Climate TRACE estimates',
   assert.equal(T.en.emitCard.nearMeta(31, '5,640'), '31 km · est. 5,640 t PM2.5/yr');
   assert.equal(T.id.emitCard.nearMeta(31, null), '31 km');
 });
+
+test('Ranking texts never claim "this week": the date range beside them states the real period', () => {
+  for (const lang of ['id', 'en'] as const) {
+    const r = T[lang].rank;
+    for (const text of [r.fireTotal(5133), r.cardFire, r.cardAir]) assert.doesNotMatch(text, /minggu ini|this week/i);
+  }
+  assert.equal(T.id.rank.fireTotal(5133), '5.133 titik api terdeteksi di seluruh Indonesia dalam periode ini.');
+});
