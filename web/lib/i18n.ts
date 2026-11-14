@@ -48,9 +48,9 @@ export const T = {
       confidence: (c: string) => `Climate TRACE's confidence in this estimate: ${c}`,
       conf: { 'very high': 'very high', high: 'high', medium: 'medium', low: 'low', 'very low': 'very low' } as Record<string, string>,
       view: 'See on Climate TRACE',
-      nearTitle: 'Big emitters within 100 km',
+      nearTitle: 'Big emitters within 100 km · Climate TRACE estimates',
       nearNone: 'No large emitter within 100 km in Climate TRACE’s data.',
-      nearMeta: (km: number, pm: string | null) => `${km} km${pm ? ` · ${pm} t PM2.5/yr` : ''}`,
+      nearMeta: (km: number, pm: string | null) => `${km} km${pm ? ` · est. ${pm} t PM2.5/yr` : ''}`,
     },
     repeatCard: {
       kicker: 'REPEAT FIRES', title: (n: number, of: number) => `Burned in ${n} of the last ${of} years`,
@@ -183,9 +183,9 @@ export const T = {
       confidence: (c: string) => `Tingkat keyakinan Climate TRACE atas perkiraan ini: ${c}`,
       conf: { 'very high': 'sangat tinggi', high: 'tinggi', medium: 'sedang', low: 'rendah', 'very low': 'sangat rendah' } as Record<string, string>,
       view: 'Lihat di Climate TRACE',
-      nearTitle: 'Sumber emisi besar dalam 100 km',
+      nearTitle: 'Sumber emisi besar dalam 100 km · perkiraan Climate TRACE',
       nearNone: 'Tidak ada sumber emisi besar dalam 100 km menurut data Climate TRACE.',
-      nearMeta: (km: number, pm: string | null) => `${km} km${pm ? ` · ${pm} t PM2.5/thn` : ''}`,
+      nearMeta: (km: number, pm: string | null) => `${km} km${pm ? ` · perkiraan ${pm} t PM2.5/thn` : ''}`,
     },
     repeatCard: {
       kicker: 'TERBAKAR BERULANG', title: (n: number, of: number) => `Terbakar ${n} dari ${of} tahun terakhir`,

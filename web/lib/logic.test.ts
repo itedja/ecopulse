@@ -103,3 +103,11 @@ test('Cleanest window says "tomorrow" only when it is on the next local day', ()
   assert.equal(T.id.cleanest('11:00', '13:00', true), 'Udara paling bersih: besok 11:00–13:00.');
   assert.equal(T.en.cleanest('11:00', '13:00'), 'Cleanest window: 11:00–13:00.');
 });
+
+test('Emitter list on the city card labels tonnages as Climate TRACE estimates', () => {
+  assert.match(T.id.emitCard.nearTitle, /perkiraan Climate TRACE/);
+  assert.match(T.en.emitCard.nearTitle, /Climate TRACE estimates/);
+  assert.equal(T.id.emitCard.nearMeta(31, '5.640'), '31 km · perkiraan 5.640 t PM2.5/thn');
+  assert.equal(T.en.emitCard.nearMeta(31, '5,640'), '31 km · est. 5,640 t PM2.5/yr');
+  assert.equal(T.id.emitCard.nearMeta(31, null), '31 km');
+});
