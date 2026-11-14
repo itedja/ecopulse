@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 import maplibregl, { type GeoJSONSource, type Map as MLMap } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { category } from '@/lib/aqi';
-import type { EmitterPoint } from '@/lib/emitters';
+import { emitRadius, type EmitterPoint } from '@/lib/emitters';
 import { cellCentre, type CityAq, type Hotspot, type Wind, type Alert, type Quake, type City, type ForestAlert, type Report, type Station, type RepeatPoint } from '@/lib/supabase';
 
 export type LayerKey = 'air' | 'fire' | 'repeat' | 'forest' | 'emit' | 'reports' | 'wind' | 'alerts';
@@ -196,7 +196,7 @@ export default function MapView({ aq, stations, fires, repeat, selectedRepeat, o
         id: 'emit-dot', type: 'circle', source: 'emit', layout: { visibility: 'none', 'circle-sort-key': ['-', ['get', 'size']] },
         paint: {
           'circle-color': '#6D28D9', 'circle-opacity': 0.85,
-          'circle-radius': ['*', ['get', 'size'], ['interpolate', ['linear'], ['zoom'], 4, 0.6, 8, 1, 12, 1.6]],
+          'circle-radius': emitRadius(0),
           'circle-stroke-color': '#FFFFFF', 'circle-stroke-width': 1.25,
         },
       });
@@ -204,7 +204,7 @@ export default function MapView({ aq, stations, fires, repeat, selectedRepeat, o
         id: 'emit-sel', type: 'circle', source: 'emit', layout: { visibility: 'none' }, filter: ['==', ['get', 'sel'], true],
         paint: {
           'circle-color': 'rgba(0,0,0,0)', 'circle-stroke-color': '#0E1116', 'circle-stroke-width': 2.5,
-          'circle-radius': ['+', 3, ['*', ['get', 'size'], ['interpolate', ['linear'], ['zoom'], 4, 0.6, 8, 1, 12, 1.6]]],
+          'circle-radius': emitRadius(3),
         },
       });
       m.addLayer({

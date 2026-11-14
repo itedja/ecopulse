@@ -1,3 +1,4 @@
+import type { ExpressionSpecification } from 'maplibre-gl';
 // "Big emitters" layer: facility types in plain words, number formatting, nearest-first lists.
 // Data: Climate TRACE (CC BY 4.0).
 import type { Lang } from './i18n';
@@ -69,3 +70,11 @@ export function nearby<T extends EmitterPoint>(list: T[], lat: number, lon: numb
 }
 
 export const EMIT_POINT_COLS = 'id,name,lon,lat,sector,subsector,asset_type,co2e_t,pm25_t';
+
+// Map radius for an emitter disc: its data-driven "size" scaled by zoom (x0.6 at zoom 4, x1 at 8,
+// x1.6 at 12), plus `pad` px for the selection ring. MapLibre only accepts ["zoom"] as the direct
+// input of a top-level interpolate, so the size is multiplied inside each stop, not outside.
+export function emitRadius(pad: number): ExpressionSpecification {
+  const at = (k: number): ExpressionSpecification => ['+', pad, ['*', ['get', 'size'], k]];
+  return ['interpolate', ['linear'], ['zoom'], 4, at(0.6), 8, at(1), 12, at(1.6)];
+}

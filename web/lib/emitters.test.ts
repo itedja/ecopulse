@@ -25,3 +25,15 @@ test('nearby: within the radius, biggest PM2.5 first', () => {
   assert.deepEqual(r.map((x) => x.id), [1, 2]);
   assert.ok(r[1].km > 15 && r[1].km < 35);
 });
+
+test('emitter disc radius is a style expression MapLibre accepts', async () => {
+  const { validateStyleMin } = await import('@maplibre/maplibre-gl-style-spec');
+  const { emitRadius } = await import('./emitters');
+  for (const pad of [0, 3]) {
+    const errors = validateStyleMin({
+      version: 8, sources: { emit: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } } },
+      layers: [{ id: 'emit-dot', type: 'circle', source: 'emit', paint: { 'circle-radius': emitRadius(pad) } }],
+    });
+    assert.deepEqual(errors.map((e) => e.message), []);
+  }
+});
