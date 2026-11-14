@@ -61,7 +61,8 @@ export default function NewsCarousel({ stories, lang, now }: Props) {
           const img = safeUrl(s.image_url);
           return (
             <a key={s.id} className="lp-news-card" href={storyHref(s.id)}>
-              <span className="lp-news-photo">{img && <img src={img} alt="" loading="lazy" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = 'none'; }} />}</span>
+              {/* No grey box when the publisher's feed gave no photo, or the photo fails to load. */}
+              {img && <span className="lp-news-photo"><img src={img} alt="" loading="lazy" referrerPolicy="no-referrer" onError={(e) => { (e.currentTarget.parentElement as HTMLElement).style.display = 'none'; }} /></span>}
               <span className="lp-news-body">
                 <span className="lp-news-tag" style={{ color: tag.color }}>{tag.label.toUpperCase()}{i === 0 ? ` · ${t.newsNewest}` : ''}</span>
                 <span className="lp-news-title">{s.title}</span>

@@ -112,7 +112,8 @@
 .lp-news-card:hover .lp-news-title { text-decoration: underline; }
 .lp-news-photo { display: block; height: 170px; background: #D9D4C6; }
 .lp-news-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.lp-news-body { padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+.lp-news-body { padding: 18px; display: flex; flex-direction: column; gap: 10px; flex: 1 1 auto; }
+.lp-news-meta { margin-top: auto; }
 .lp-news-tag { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; }
 .lp-news-title { font-family: var(--display); font-size: 22px; font-weight: 400; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 .lp-news-meta { font-size: 13px; font-weight: 500; color: var(--muted); }
