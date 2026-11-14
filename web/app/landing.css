@@ -43,6 +43,7 @@
 .lp-legend .lg-air { background: conic-gradient(#2E9E5B 0 33%, #E8B10A 0 66%, #D93A2B 0); margin-left: 6px; border: 1px solid var(--ink); }
 
 .lp-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.lp-stats[data-n='3'] .lp-stat:last-child { grid-column: 1 / -1; }
 .lp-stat { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 6px; }
 .lp-stat b { font-size: 30px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; }
 .lp-stat span { font-size: 14px; font-weight: 600; line-height: 1.35; }
@@ -110,6 +111,8 @@
   .lp-ctas { flex-direction: row; }
   .lp-wrap { padding: 48px 32px; }
   .lp-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+  .lp-stats[data-n='3'] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .lp-stats[data-n='3'] .lp-stat:last-child { grid-column: auto; }
   .lp-stat { padding: 22px; }
   .lp-stat b { font-size: 40px; }
   .lp-worst { padding: 28px; }

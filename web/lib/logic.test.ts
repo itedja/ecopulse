@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { category, cleanestWindow, advice, isNextLocalDay } from './aqi.ts';
 import { upwindFires, bearing, compass } from './smoke.ts';
 import { cityTimeZone, hhmm, T } from './i18n.ts';
+import { worthShowing } from './stats.ts';
 
 test('AQI categories', () => {
   assert.equal(category(50)!.key, 'good');
@@ -118,4 +119,13 @@ test('Ranking texts never claim "this week": the date range beside them states t
     for (const text of [r.fireTotal(5133), r.cardFire, r.cardAir]) assert.doesNotMatch(text, /minggu ini|this week/i);
   }
   assert.equal(T.id.rank.fireTotal(5133), '5.133 titik api terdeteksi di seluruh Indonesia dalam periode ini.');
+});
+
+test('Headline stats: zero and missing counts are hidden, real counts are shown', () => {
+  assert.equal(worthShowing(0), false);
+  assert.equal(worthShowing(null), false);
+  assert.equal(worthShowing(undefined), false);
+  assert.equal(worthShowing(Number.NaN), false);
+  assert.equal(worthShowing(1), true);
+  assert.equal(worthShowing(5133), true);
 });
