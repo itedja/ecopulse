@@ -3,6 +3,7 @@
 // Google sign-in flow on /app.
 import { createClient } from '@supabase/supabase-js';
 import type { Lang } from './i18n';
+import { latestStories, type Story } from './news';
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -23,6 +24,7 @@ export type Live = {
   mostForest: (Place & { n: number }) | null;
   firePoints: [number, number][];
   cityPoints: { lon: number; lat: number; aqi: number }[];
+  news: Story[];             // the four newest stories
 };
 
 type Rank = { name_en: string; name_id: string; fires_7d: number; forest_alerts_7d: number | null; fires_since: string | null };
@@ -35,12 +37,13 @@ function top<T>(rows: T[], val: (r: T) => number): T | null {
 }
 
 export async function loadLive(): Promise<Live> {
-  const [ranks, aq, cities, reports, fires] = await Promise.all([
+  const [ranks, aq, cities, reports, fires, news] = await Promise.all([
     db.from('province_rankings_7d').select('name_en, name_id, fires_7d, forest_alerts_7d, fires_since'),
     db.from('city_aq_latest').select('slug, name_en, aqi_us, computed_at, latitude, longitude'),
     db.from('cities').select('slug, name_id'),
     db.from('reports_public').select('id', { count: 'exact', head: true }),
     db.from('hotspots_recent').select('latitude, longitude, province_id').not('province_id', 'is', null).limit(4000),
+    db.from('news_feed').select(STORY_COLS).order('published_at', { ascending: false }).limit(12),
   ]);
   const r = (ranks.data ?? []) as Rank[];
   const a = ((aq.data ?? []) as Aq[]).filter((x) => x.aqi_us > 0);
@@ -62,7 +65,20 @@ export async function loadLive(): Promise<Live> {
     mostForest: mfo ? { en: mfo.name_en, id: mfo.name_id, n: mfo.forest_alerts_7d ?? 0 } : null,
     firePoints: ((fires.data ?? []) as { latitude: number; longitude: number }[]).map((f) => [f.longitude, f.latitude]),
     cityPoints: a.map((x) => ({ lon: x.longitude, lat: x.latitude, aqi: x.aqi_us })),
+    news: latestStories((news.data ?? []) as Story[]),
   };
+}
+
+const STORY_COLS = 'id, url, title, published_at, summary_en, summary_id, topics, source_name, image_url';
+
+// One story for its own page, plus the newest few to read next.
+export async function loadStory(id: number): Promise<{ story: Story | null; more: Story[] }> {
+  const [one, latest] = await Promise.all([
+    db.from('news_feed').select(STORY_COLS).eq('id', id).maybeSingle(),
+    db.from('news_feed').select(STORY_COLS).order('published_at', { ascending: false }).limit(12),
+  ]);
+  const story = (one.data as Story | null) ?? null;
+  return { story, more: latestStories(((latest.data ?? []) as Story[]).filter((s) => s.id !== id), 3) };
 }
 
 export const L = {
@@ -80,6 +96,11 @@ export const L = {
     reports: 'laporan warga yang masih aktif',
     sources: 'NASA FIRMS · Global Forest Watch · WAQI · OpenAQ',
     mapHint: 'Ketuk untuk membuka peta langsung', legendFire: 'Titik api', legendAir: 'Kualitas udara kota',
+    newsEyebrow: 'BERITA TERBARU · DIPERBARUI TIAP JAM', newsTitle: 'Yang terjadi hari ini',
+    newsOf: (i: number, n: number) => `${i} dari ${n}`, newsPrev: 'Berita sebelumnya', newsNext: 'Berita berikutnya', newsNewest: 'TERBARU',
+    storyHome: 'Beranda', storyOurs: 'RINGKASAN KAMI', storyRead: (src: string) => `Baca selengkapnya di ${src}`,
+    storyNote: 'Ringkasan ditulis EcoPulse dengan bantuan AI. Artikel lengkap ada di situs penerbitnya.',
+    storyNext: 'BERITA LAINNYA', storyMissing: 'Berita ini tidak ditemukan. Mungkin sudah tidak tersedia.', storyLoading: 'Memuat…',
     worstTitle: 'Terparah di Indonesia saat ini', worstAir: 'UDARA TERBURUK', mostFires: 'TITIK API TERBANYAK', mostForest: 'KEHILANGAN HUTAN TERBANYAK',
     nFires: (n: string) => `${n} titik api`, nAlerts: (n: string) => `${n} peringatan`,
     share: 'Bagikan ke Story', sharing: 'Menyiapkan…',
@@ -124,6 +145,11 @@ export const L = {
     reports: 'active reports from people',
     sources: 'NASA FIRMS · Global Forest Watch · WAQI · OpenAQ',
     mapHint: 'Tap to open the live map', legendFire: 'Fire hotspot', legendAir: 'City air quality',
+    newsEyebrow: 'LATEST NEWS · UPDATED EVERY HOUR', newsTitle: 'What happened today',
+    newsOf: (i: number, n: number) => `${i} of ${n}`, newsPrev: 'Previous story', newsNext: 'Next story', newsNewest: 'NEWEST',
+    storyHome: 'Home', storyOurs: 'OUR SUMMARY', storyRead: (src: string) => `Read the full story at ${src}`,
+    storyNote: 'Summary written by EcoPulse with the help of AI. The full article is on the publisher\'s site.',
+    storyNext: 'MORE NEWS', storyMissing: 'This story could not be found. It may no longer be available.', storyLoading: 'Loading…',
     worstTitle: "Indonesia's worst right now", worstAir: 'WORST AIR', mostFires: 'MOST FIRES', mostForest: 'MOST FOREST LOSS',
     nFires: (n: string) => `${n} hotspots`, nAlerts: (n: string) => `${n} alerts`,
     share: 'Share to your Story', sharing: 'Preparing…',

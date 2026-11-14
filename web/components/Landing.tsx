@@ -8,6 +8,7 @@ import HelpGuide from '@/components/HelpGuide';
 import MiniMap from '@/components/MiniMap';
 import CountUp from '@/components/CountUp';
 import { worthShowing } from '@/lib/stats';
+import NewsCarousel from '@/components/NewsCarousel';
 
 const REFRESH_MS = 2 * 60_000;
 const CONTACT = 'ecopulseindonesia@gmail.com';
@@ -137,6 +138,8 @@ export default function Landing() {
           <span className="lp-legend mono"><i className="lg-fire" />{t.legendFire}<i className="lg-air" />{t.legendAir}</span>
         </a>
       </section>
+
+      <NewsCarousel stories={live ? live.news : liveConfigured ? null : []} lang={lang} now={now} />
 
       <section className="lp-wrap">
         <h2 className="lp-eyebrow">{t.nowTitle}</h2>
