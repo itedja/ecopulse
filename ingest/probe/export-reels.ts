@@ -1,5 +1,5 @@
 // Temporary: exports the live numbers used in social videos.
-import { writeFileSync } from 'node:fs';
+import { gzipSync } from 'node:zlib';
 import { db } from '../lib/db.ts';
 const out: Record<string, unknown> = { at: new Date().toISOString() };
 const pts = await db().rpc('repeat_fire_points'); if (pts.error) throw pts.error; out.repeatPoints = pts.data;
@@ -9,5 +9,6 @@ const provs = await db().from('provinces').select('id,name_en,name_id'); out.pro
 // Per-year counts for the 5/5 cells in West Kalimantan, for the year-by-year animation.
 const cells = []; for (let off = 0; ; off += 1000) { const r = await db().from('repeat_fire_cells').select('lon,lat,years,n_years,province_id').gte('n_years', 3).range(off, off + 999); if (r.error) throw r.error; cells.push(...r.data); if (r.data.length < 1000) break; }
 out.cells3 = cells;
-writeFileSync('reels-data.json', JSON.stringify(out));
+const b64 = gzipSync(JSON.stringify(out)).toString('base64');
+for (let i = 0; i < b64.length; i += 4000) console.log('DATA ' + b64.slice(i, i + 4000));
 console.log('cells3', cells.length, 'emitters', (em.data ?? []).length);
