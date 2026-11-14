@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   openGraph: { siteName: 'EcoPulse Indonesia' },
 };
 
-export const viewport: Viewport = { themeColor: '#0E1116', width: 'device-width', initialScale: 1 };
+export const viewport: Viewport = { themeColor: '#0F1830', width: 'device-width', initialScale: 1 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -29,7 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
       <body>{children}<RegisterSW /></body>
     </html>

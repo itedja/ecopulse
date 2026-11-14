@@ -43,7 +43,7 @@ export default function MiniMap({ fires, cities, label }: Props) {
         m.addLayer({ id: 'fires', type: 'circle', source: 'fires',
           paint: { 'circle-radius': 2.5, 'circle-color': '#C2410C', 'circle-opacity': 0.75 } });
         m.addLayer({ id: 'cities', type: 'circle', source: 'cities',
-          paint: { 'circle-radius': 6, 'circle-color': ['get', 'color'], 'circle-stroke-color': '#0E1116', 'circle-stroke-width': 1.5 } });
+          paint: { 'circle-radius': 6, 'circle-color': ['get', 'color'], 'circle-stroke-color': '#1B2A49', 'circle-stroke-width': 1.5 } });
         draw();
       });
     })();

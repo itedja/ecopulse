@@ -44,7 +44,7 @@ function squareImage(selected: boolean): ImageData {
   const s = 28, c = document.createElement('canvas');
   c.width = c.height = s;
   const g = c.getContext('2d')!;
-  g.fillStyle = selected ? '#0E1116' : '#FFFFFF'; g.fillRect(2, 2, 24, 24);
+  g.fillStyle = selected ? '#1B2A49' : '#FFFFFF'; g.fillRect(2, 2, 24, 24);
   g.fillStyle = '#8B5E34'; g.fillRect(5, 5, 18, 18);
   return g.getImageData(0, 0, s, s);
 }
@@ -54,7 +54,7 @@ function discImage(color: string, selected: boolean): ImageData {
   const s = 72, c = document.createElement('canvas');
   c.width = c.height = s;
   const g = c.getContext('2d')!;
-  g.beginPath(); g.arc(36, 36, selected ? 35 : 30, 0, Math.PI * 2); g.fillStyle = selected ? '#0E1116' : '#FFFFFF'; g.fill();
+  g.beginPath(); g.arc(36, 36, selected ? 35 : 30, 0, Math.PI * 2); g.fillStyle = selected ? '#1B2A49' : '#FFFFFF'; g.fill();
   g.beginPath(); g.arc(36, 36, selected ? 29 : 26, 0, Math.PI * 2); g.fillStyle = color; g.fill();
   return g.getImageData(0, 0, s, s);
 }
@@ -69,7 +69,7 @@ function pinImage(style: 'filled' | 'hollow' | 'grey', selected: boolean): Image
   g.scale(1.4, 1.4);
   const color = style === 'grey' ? '#94A3B8' : REPORT;
   g.beginPath(); g.moveTo(20, 37); g.bezierCurveTo(12, 27, 7, 21, 7, 15); g.arc(20, 15, 13, Math.PI, 0); g.bezierCurveTo(33, 21, 28, 27, 20, 37); g.closePath();
-  g.fillStyle = selected ? '#0E1116' : '#FFFFFF'; g.fill();
+  g.fillStyle = selected ? '#1B2A49' : '#FFFFFF'; g.fill();
   g.beginPath(); g.moveTo(20, 33); g.bezierCurveTo(13.5, 25, 10, 20, 10, 15); g.arc(20, 15, 10, Math.PI, 0); g.bezierCurveTo(30, 20, 26.5, 25, 20, 33); g.closePath();
   g.fillStyle = color; g.fill();
   g.beginPath(); g.arc(20, 15, 4, 0, Math.PI * 2);
@@ -170,7 +170,7 @@ export default function MapView({ aq, stations, fires, repeat, selectedRepeat, o
       m.addLayer({
         id: 'repeat-sel', type: 'circle', source: 'repeat', layout: { visibility: 'none' }, filter: ['==', ['get', 'sel'], true],
         paint: {
-          'circle-color': 'rgba(0,0,0,0)', 'circle-stroke-color': '#0E1116', 'circle-stroke-width': 2.5,
+          'circle-color': 'rgba(0,0,0,0)', 'circle-stroke-color': '#1B2A49', 'circle-stroke-width': 2.5,
           'circle-radius': ['interpolate', ['exponential', 2], ['zoom'], 4, 4, 7, 5, 10, 10, 13, 62],
         },
       });
@@ -203,7 +203,7 @@ export default function MapView({ aq, stations, fires, repeat, selectedRepeat, o
       m.addLayer({
         id: 'emit-sel', type: 'circle', source: 'emit', layout: { visibility: 'none' }, filter: ['==', ['get', 'sel'], true],
         paint: {
-          'circle-color': 'rgba(0,0,0,0)', 'circle-stroke-color': '#0E1116', 'circle-stroke-width': 2.5,
+          'circle-color': 'rgba(0,0,0,0)', 'circle-stroke-color': '#1B2A49', 'circle-stroke-width': 2.5,
           'circle-radius': emitRadius(3),
         },
       });

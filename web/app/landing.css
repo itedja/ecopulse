@@ -3,7 +3,7 @@
 .lp a { text-decoration: none; }
 .lp-wrap { max-width: 1120px; margin: 0 auto; padding: 32px 16px; }
 .lp-eyebrow { margin: 0 0 14px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; color: var(--muted); }
-.lp-h2 { margin: 0 0 8px; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.2; }
+.lp-h2 { margin: 0 0 8px; font-family: var(--display); font-size: 30px; font-weight: 400; letter-spacing: -0.02em; line-height: 1.2; }
 .lp-sub { margin: 0 0 18px; color: var(--slate); line-height: 1.55; max-width: 640px; }
 
 .lp-banner { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; background: var(--ink); color: #FFFFFF; }
@@ -30,14 +30,14 @@
 .lp-pulse { width: 8px; height: 8px; border-radius: 50%; background: #D93A2B; animation: lp-pulse 2s ease-in-out infinite; }
 @keyframes lp-pulse { 50% { opacity: 0.35; } }
 @media (prefers-reduced-motion: reduce) { .lp-pulse { animation: none; } }
-.lp h1 { margin: 0; font-size: 36px; line-height: 1.08; letter-spacing: -0.03em; font-weight: 800; text-wrap: balance; }
+.lp h1 { margin: 0; font-family: var(--display); font-size: 42px; line-height: 1.06; letter-spacing: -0.03em; font-weight: 300; text-wrap: balance; }
 .lp-lede { margin: 0; font-size: 16px; line-height: 1.55; color: var(--slate); max-width: 520px; }
 .lp-ctas { display: flex; flex-direction: column; gap: 10px; }
 
 .lp-map-link { position: relative; display: block; border-radius: 16px; overflow: hidden; border: 1px solid var(--line); color: var(--ink); }
 .lp-minimap { height: 260px; background: #DCE3EA; }
 .lp-map-hint { position: absolute; left: 12px; top: 12px; background: #FFFFFF; border-radius: 14px; padding: 6px 10px; font: 600 12px var(--font); box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
-.lp-legend { position: absolute; left: 12px; top: 48px; display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.92); border-radius: 8px; padding: 4px 8px; font-size: 11px; }
+.lp-legend { position: absolute; left: 12px; top: 48px; display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.92); border-radius: 8px; padding: 4px 8px; font-size: 12px; }
 .lp-legend i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .lp-legend .lg-fire { background: #C2410C; }
 .lp-legend .lg-air { background: conic-gradient(#2E9E5B 0 33%, #E8B10A 0 66%, #D93A2B 0); margin-left: 6px; border: 1px solid var(--ink); }
@@ -45,17 +45,17 @@
 .lp-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .lp-stats[data-n='3'] .lp-stat:last-child { grid-column: 1 / -1; }
 .lp-stat { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 6px; }
-.lp-stat b { font-size: 30px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; }
+.lp-stat b { font-family: var(--display); font-size: 36px; font-weight: 300; letter-spacing: -0.03em; line-height: 1.05; }
 .lp-stat span { font-size: 14px; font-weight: 600; line-height: 1.35; }
 .lp-stat b span { font: inherit; letter-spacing: inherit; line-height: inherit; }
 .lp-stat em { font-style: normal; }
-.lp-src { margin: 10px 0 0; font-size: 11px; color: var(--muted); }
+.lp-src { margin: 10px 0 0; font-size: 12px; color: var(--muted); }
 
 .lp-worst { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
 .lp-worst h2 { margin: 0; font-size: 20px; }
 .lp-worst-rows { display: grid; gap: 16px; }
 .lp-worst-rows div { border-top: 3px solid; padding-top: 10px; display: flex; flex-direction: column; gap: 2px; }
-.lp-worst-rows span { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; color: var(--muted); }
+.lp-worst-rows span { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; color: var(--muted); }
 .lp-worst-rows b { font-size: 20px; }
 .lp-worst-rows small { font-size: 13px; color: var(--slate); }
 
@@ -81,7 +81,7 @@
 .lp-help .guide-card { margin: 0; }
 
 .lp-get { background: var(--ink); color: #FFFFFF; border-radius: 20px; padding: 24px; display: flex; flex-direction: column; gap: 14px; }
-.lp-get h2 { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; }
+.lp-get h2 { margin: 0; font-family: var(--display); font-size: 30px; font-weight: 400; letter-spacing: -0.02em; line-height: 1.15; }
 .lp-get > p { margin: 0; color: #C9CED6; line-height: 1.5; }
 .lp-get-cols { display: grid; gap: 22px; margin-top: 6px; }
 .lp-get-col { display: flex; flex-direction: column; gap: 12px; }

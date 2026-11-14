@@ -4,10 +4,11 @@ import type { Lang } from './i18n';
 
 export type Category = 'good' | 'moderate' | 'sensitive' | 'unhealthy' | 'very_unhealthy' | 'hazardous';
 
+// `ink` is the label colour on each badge, chosen so every badge passes WCAG AA (see design.test.ts).
 export const CATEGORIES: { key: Category; max: number; color: string; ink: string }[] = [
-  { key: 'good', max: 50, color: '#2E9E5B', ink: '#FFFFFF' },
-  { key: 'moderate', max: 100, color: '#E8B10A', ink: '#0E1116' },
-  { key: 'sensitive', max: 150, color: '#F07F1E', ink: '#0E1116' },
+  { key: 'good', max: 50, color: '#2E9E5B', ink: '#0F1830' },
+  { key: 'moderate', max: 100, color: '#E8B10A', ink: '#0F1830' },
+  { key: 'sensitive', max: 150, color: '#F07F1E', ink: '#0F1830' },
   { key: 'unhealthy', max: 200, color: '#D93A2B', ink: '#FFFFFF' },
   { key: 'very_unhealthy', max: 300, color: '#8E3BB5', ink: '#FFFFFF' },
   { key: 'hazardous', max: Infinity, color: '#6E1423', ink: '#FFFFFF' },

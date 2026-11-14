@@ -9,7 +9,7 @@
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#F4F5F7",
-  "theme_color": "#0E1116",
+  "theme_color": "#0F1830",
   "categories": ["weather", "news", "utilities"],
   "icons": [
     { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
