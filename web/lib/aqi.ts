@@ -62,6 +62,13 @@ export function cleanestWindow(points: ForecastPoint[], timeZone: string): { sta
   return best;
 }
 
+// True when `when` falls on the calendar day after `now` in the given time zone. Used so a
+// "cleanest window" that is tomorrow morning says so instead of showing bare clock times.
+export function isNextLocalDay(when: Date, now: Date, timeZone: string): boolean {
+  const day = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+  return day(when) === day(new Date(now.getTime() + 86400_000)) && day(when) !== day(now);
+}
+
 // ---- PM2.5 <-> US AQI (EPA breakpoints, 2024 revision) ----
 const BP: [number, number, number, number][] = [
   [0.0, 9.0, 0, 50], [9.1, 35.4, 51, 100], [35.5, 55.4, 101, 150],

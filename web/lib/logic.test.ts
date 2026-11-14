@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { category, cleanestWindow, advice } from './aqi.ts';
+import { category, cleanestWindow, advice, isNextLocalDay } from './aqi.ts';
 import { upwindFires, bearing, compass } from './smoke.ts';
 import { cityTimeZone, hhmm, T } from './i18n.ts';
 
@@ -89,4 +89,17 @@ test('time spans read naturally', () => {
   assert.equal(span(30 * 60_000, 'en'), '30 min');
   assert.equal(span(5 * 3600_000, 'id'), '5 jam');
   assert.equal(span(3 * 86400_000, 'en'), '3 days');
+});
+
+test('Cleanest window says "tomorrow" only when it is on the next local day', () => {
+  // 18:47 WIB on 14 Nov. A window starting 11:00 WIB on 15 Nov is tomorrow; 20:00 WIB on 14 Nov is not.
+  const now = new Date('2026-11-14T11:47:00Z');
+  assert.equal(isNextLocalDay(new Date('2026-11-15T04:00:00Z'), now, 'Asia/Jakarta'), true);
+  assert.equal(isNextLocalDay(new Date('2026-11-14T13:00:00Z'), now, 'Asia/Jakarta'), false);
+  // Same instant is already "tomorrow" in Jayapura (WIT) after 22:00 WIB, but still today in Jakarta.
+  const late = new Date('2026-11-14T15:30:00Z');   // 22:30 WIB = 00:30 WIT on the 15th
+  assert.equal(isNextLocalDay(new Date('2026-11-15T01:00:00Z'), late, 'Asia/Jakarta'), true);
+  assert.equal(isNextLocalDay(new Date('2026-11-15T01:00:00Z'), late, 'Asia/Jayapura'), false);
+  assert.equal(T.id.cleanest('11:00', '13:00', true), 'Udara paling bersih: besok 11:00–13:00.');
+  assert.equal(T.en.cleanest('11:00', '13:00'), 'Cleanest window: 11:00–13:00.');
 });

@@ -5,7 +5,7 @@ import { supabase, supabaseConfigured, type City, type CityAq, type Hotspot, typ
 import { T, type Lang, cityTimeZone, hhmm } from '@/lib/i18n';
 import LegalNote from '@/components/LegalNote';
 import { CLEAN_AIR, JAKARTA_CASE, JAKARTA_AREA } from '@/lib/legal';
-import { category, advice, cleanestWindow, calibrateForecast, pm25ToAqi, type Category } from '@/lib/aqi';
+import { category, advice, cleanestWindow, calibrateForecast, pm25ToAqi, isNextLocalDay, type Category } from '@/lib/aqi';
 import { upwindFires, distanceKm, compass } from '@/lib/smoke';
 import type { LayerKey } from '@/components/MapView';
 import Rankings, { type RankingRow } from '@/components/Rankings';
@@ -329,7 +329,7 @@ export default function Home() {
                 </div>
                 <p className="verdict-text">
                   {t.verdict[cat.key as Category]}
-                  {best && cat.key !== 'good' && <> {t.cleanest(hhmm(best.start, tz.tz), hhmm(best.end, tz.tz))}</>}
+                  {best && cat.key !== 'good' && <> {t.cleanest(hhmm(best.start, tz.tz), hhmm(best.end, tz.tz), isNextLocalDay(best.start, new Date(now), tz.tz))}</>}
                 </p>
 
                 {forecast.length > 0 && (
