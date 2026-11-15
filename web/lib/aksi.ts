@@ -51,11 +51,31 @@ export function ago(iso: string, now: number, lang: ALang): string {
   return lang === 'en' ? `${d} d ago` : `${d} hari lalu`;
 }
 
+export type Profile = { nickname: string; rank_key: string; points: number; mine: boolean; streak: number; approved_total: number;
+  days: string[]; posts: { id: string; photo_path: string | null; caption: string | null; action_day: string; approved_at: string }[] };
+
+// Today's date in Jakarta (UTC+7, no daylight saving), as YYYY-MM-DD.
+export function jakartaDay(now: number): string {
+  return new Date(now + 7 * 3600_000).toISOString().slice(0, 10);
+}
+
+// The current week, Monday to Sunday, for the row of dots on a profile.
+export function weekDots(days: string[], now: number): { date: string; done: boolean; today: boolean; future: boolean }[] {
+  const today = jakartaDay(now);
+  const t = new Date(today + 'T00:00:00Z');
+  const monday = t.getTime() - ((t.getUTCDay() + 6) % 7) * 86400_000;
+  const done = new Set(days);
+  return Array.from({ length: 7 }, (_, i) => {
+    const date = new Date(monday + i * 86400_000).toISOString().slice(0, 10);
+    return { date, done: done.has(date), today: date === today, future: date > today };
+  });
+}
+
 export const RULES_VERSION = 1;
 
 export const A = {
   id: {
-    tag: '#SatuAksiSehari', back: 'Peta', feed: 'Aksi', me: 'Saya',
+    tag: '#SatuAksiSehari', back: 'Peta', feed: 'Aksi', me: 'Profil',
     lockedTitle: 'Satu aksi kecil setiap hari.',
     lockedBody: 'Aksi adalah ruang anggota EcoPulse untuk berbagi foto aksi kecil bagi lingkungan: memungut sampah, menanam, membawa botol sendiri. Hanya anggota yang bisa melihatnya.',
     signIn: 'Masuk dengan Google', signInWaiting: 'Selesaikan masuk dengan Google, lalu kembali ke sini.', adultsNote: 'Khusus usia 18 tahun ke atas.',
@@ -85,6 +105,9 @@ export const A = {
     myPosts: 'Unggahan saya', status: { pending: 'Sedang diperiksa', approved: 'Tampil', rejected: 'Ditolak', held: 'Ditahan untuk diperiksa' } as Record<string, string>,
     appeal: 'Ajukan banding', appealPh: 'Jelaskan singkat mengapa foto ini seharusnya diterima (opsional)', appealSend: 'Kirim banding',
     appealOpen: 'Banding terkirim. Tim EcoPulse Indonesia akan memeriksanya.', appealDenied: 'Banding ditolak.', remove: 'Hapus', removeAsk: 'Hapus unggahan ini?',
+    profile: 'Profil', thisWeek: 'Minggu ini', weekdays: ['S', 'S', 'R', 'K', 'J', 'S', 'M'], waiting: 'Menunggu dan ditolak', noPhotos: 'Belum ada aksi yang tampil.',
+    editName: 'Ubah nama', nameHint: '3 sampai 24 huruf, angka, titik, atau garis bawah.', save: 'Simpan', nameTaken: 'Nama itu sudah dipakai.', nameBad: 'Nama harus 3 sampai 24 huruf, angka, titik, atau garis bawah.',
+    nextRank: (n: number, r: string) => `${n} poin lagi menuju ${r}`, topRank: 'Peringkat tertinggi', notFound: 'Profil tidak ditemukan.',
     settings: 'Pengaturan', signOut: 'Keluar', you: 'Anda',
     errors: {
       sign_in_required: 'Silakan masuk dulu.', not_a_member: 'Anda belum bergabung dengan Aksi.', adults_only: 'Aksi hanya untuk usia 18 tahun ke atas.',
@@ -95,7 +118,7 @@ export const A = {
     } as Record<AksiError, string>,
   },
   en: {
-    tag: '#SatuAksiSehari', back: 'Map', feed: 'Aksi', me: 'Me',
+    tag: '#SatuAksiSehari', back: 'Map', feed: 'Aksi', me: 'Profile',
     lockedTitle: 'One small action a day.',
     lockedBody: 'Aksi is the EcoPulse members’ space for sharing photos of small actions for the environment: picking up litter, planting, carrying your own bottle. Only members can see it.',
     signIn: 'Sign in with Google', signInWaiting: 'Finish signing in with Google, then come back here.', adultsNote: 'For ages 18 and over only.',
@@ -125,6 +148,9 @@ export const A = {
     myPosts: 'My posts', status: { pending: 'Being checked', approved: 'Visible', rejected: 'Rejected', held: 'Held for review' } as Record<string, string>,
     appeal: 'Appeal', appealPh: 'Briefly say why this photo should be accepted (optional)', appealSend: 'Send appeal',
     appealOpen: 'Appeal sent. Tim EcoPulse Indonesia will look at it.', appealDenied: 'Appeal denied.', remove: 'Delete', removeAsk: 'Delete this post?',
+    profile: 'Profile', thisWeek: 'This week', weekdays: ['M', 'T', 'W', 'T', 'F', 'S', 'S'], waiting: 'Waiting and rejected', noPhotos: 'No visible actions yet.',
+    editName: 'Change name', nameHint: '3 to 24 letters, numbers, dots or underscores.', save: 'Save', nameTaken: 'That name is taken.', nameBad: 'A name must be 3 to 24 letters, numbers, dots or underscores.',
+    nextRank: (n: number, r: string) => `${n} points to ${r}`, topRank: 'Highest rank reached', notFound: 'Profile not found.',
     settings: 'Settings', signOut: 'Sign out', you: 'You',
     errors: {
       sign_in_required: 'Please sign in first.', not_a_member: 'You have not joined Aksi yet.', adults_only: 'Aksi is for ages 18 and over only.',

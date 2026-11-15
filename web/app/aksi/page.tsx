@@ -3,10 +3,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/useAuth';
 import { rememberReturn } from '@/lib/returnTo';
-import { preparePhoto } from '@/lib/community';
+import { preparePhoto, rankProgress } from '@/lib/community';
 import { T } from '@/lib/i18n';
-import { A, REACTIONS, FLAG_REASONS, aksiError, noteFor, toggleReaction, ago,
-  type ALang, type FeedPost, type PostDetail, type Me, type MyPost, type Reaction, type FlagReason } from '@/lib/aksi';
+import { A, REACTIONS, FLAG_REASONS, aksiError, noteFor, toggleReaction, ago, weekDots,
+  type ALang, type Profile, type FeedPost, type PostDetail, type Me, type MyPost, type Reaction, type FlagReason } from '@/lib/aksi';
 
 const PAGE = 12;
 
@@ -39,6 +39,7 @@ export default function AksiPage() {
   const [more, setMore] = useState(false);
   const [loading, setLoading] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [who, setWho] = useState<string | null>(null);
   const [composing, setComposing] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -132,7 +133,7 @@ export default function AksiPage() {
                 <article key={p.id} className="ak-post">
                   <header>
                     <span className="ak-avatar" aria-hidden="true">{p.nickname.slice(0, 1).toUpperCase()}</span>
-                    <div><b>{p.mine ? t.you : p.nickname}</b><span className="small muted">{T[lang].rep.ranks[p.rank_key as keyof typeof T.en.rep.ranks] ?? ''} · {ago(p.approved_at, now, lang)}</span></div>
+                    <div><button className="ak-name" onClick={() => (p.mine ? setView('me') : setWho(p.nickname))}>{p.mine ? t.you : p.nickname}</button><span className="small muted">{T[lang].rep.ranks[p.rank_key as keyof typeof T.en.rep.ranks] ?? ''} · {ago(p.approved_at, now, lang)}</span></div>
                     {p.streak > 0 && <span className="ak-chip" title={t.streak(p.streak)}><Flame />{p.streak}</span>}
                   </header>
                   <button className="ak-photo" onClick={() => setOpenId(p.id)} aria-label={t.comments(p.comments)}>
@@ -149,7 +150,7 @@ export default function AksiPage() {
           )}
 
           {view === 'me' && (
-            <MePanel lang={lang} me={me} urls={photos.urls} onChanged={loadMe} onSignOut={auth.signOut}
+            <MePanel lang={lang} me={me} now={now} urls={photos.urls} onOpen={setOpenId} onChanged={loadMe} onSignOut={auth.signOut}
               onLang={async (l) => { setLang(l); try { localStorage.setItem('ep.lang', l); } catch { /* private mode */ } await supabase.rpc('aksi_set_lang', { p_lang: l }); }} />
           )}
 
@@ -161,6 +162,7 @@ export default function AksiPage() {
             <Compose lang={lang} userId={auth.userId} onClose={() => setComposing(false)}
               onSent={() => { setComposing(false); setNotice(t.sent); setView('me'); loadMe(); }} />
           )}
+          {who && !openId && <ProfileSheet lang={lang} nickname={who} now={now} urls={photos.urls} needPhoto={photos.need} onOpen={setOpenId} onClose={() => setWho(null)} />}
           {openId && <PostView lang={lang} id={openId} now={now} urls={photos.urls} needPhoto={photos.need} onClose={() => { setOpenId(null); loadFeed(null); }} />}
         </>
       )}
@@ -362,23 +364,101 @@ function PostView({ lang, id, now, urls, needPhoto, onClose }: { lang: ALang; id
   );
 }
 
-function MePanel({ lang, me, urls, onChanged, onSignOut, onLang }: { lang: ALang; me: Me; urls: Record<string, string>; onChanged: () => void; onSignOut: () => void; onLang: (l: ALang) => void }) {
+function WeekRow({ lang, days, now }: { lang: ALang; days: string[]; now: number }) {
   const t = A[lang];
-  const streak = me.streak ?? 0;
   return (
-    <main className="ak-me">
+    <ol className="ak-week" aria-label={t.thisWeek}>
+      {weekDots(days, now).map((d, i) => (
+        <li key={d.date} className={`${d.done ? 'done' : ''}${d.today ? ' today' : ''}${d.future ? ' future' : ''}`}>
+          <span className="ak-dot" aria-hidden="true">{d.done && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 5 5 9-10" /></svg>}</span>
+          <span className="ak-wd">{t.weekdays[i]}</span>
+          <span className="sr-only">{d.date}{d.done ? ' ✓' : ''}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function ProfileHead({ lang, nickname, rankKey, points, streak, total, days, now, children }: { lang: ALang; nickname: string; rankKey: string; points: number; streak: number; total: number; days: string[]; now: number; children?: React.ReactNode }) {
+  const t = A[lang];
+  const ranks = T[lang].rep.ranks as Record<string, string>;
+  const prog = rankProgress(points);
+  return (
+    <>
+      <section className="ak-phead">
+        <span className="ak-avatar big" aria-hidden="true">{nickname.slice(0, 1).toUpperCase()}</span>
+        <div>
+          <h1>{nickname}</h1>
+          <p className="small muted">{ranks[rankKey] ?? ''} · {points} {t.points} · {t.total(total)}</p>
+          {children}
+        </div>
+      </section>
+      <div className="ak-prog" aria-hidden="true"><span style={{ width: `${prog.pct}%` }} /></div>
+      <p className="small muted ak-progtext">{prog.next ? t.nextRank(prog.toNext, ranks[prog.next] ?? prog.next) : t.topRank}</p>
       <section className="ak-streakcard">
         <p className="ak-big"><Flame />{streak}</p>
         <p className="ak-streaklabel">{streak > 0 ? t.streak(streak) : t.streakNone}</p>
-        <p className="small">{me.posted_today ? t.today : t.todayNot} · {t.restNote}</p>
-        <p className="small">{me.nickname} · {me.points ?? 0} {t.points} · {t.total(me.approved_total ?? 0)}</p>
+        <WeekRow lang={lang} days={days} now={now} />
+        <p className="small">{t.restNote}</p>
       </section>
+    </>
+  );
+}
+
+function PhotoGrid({ lang, posts, urls, onOpen }: { lang: ALang; posts: { id: string; photo_path: string | null; caption: string | null }[]; urls: Record<string, string>; onOpen: (id: string) => void }) {
+  const t = A[lang];
+  if (!posts.length) return <p className="muted">{t.noPhotos}</p>;
+  return (
+    <ul className="ak-grid">
+      {posts.map((p) => (
+        <li key={p.id}><button onClick={() => onOpen(p.id)} aria-label={p.caption ?? 'Aksi'}>
+          {p.photo_path && urls[p.photo_path] ? <img src={urls[p.photo_path]} alt="" loading="lazy" /> : <span className="ak-ph" />}
+        </button></li>
+      ))}
+    </ul>
+  );
+}
+
+function MePanel({ lang, me, now, urls, onOpen, onChanged, onSignOut, onLang }: { lang: ALang; me: Me; now: number; urls: Record<string, string>; onOpen: (id: string) => void; onChanged: () => void; onSignOut: () => void; onLang: (l: ALang) => void }) {
+  const t = A[lang];
+  const all = me.posts ?? [];
+  const shown = all.filter((p) => p.status === 'approved');
+  const other = all.filter((p) => p.status !== 'approved');
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(me.nickname ?? '');
+  const [error, setError] = useState<string | null>(null);
+  async function saveName() {
+    setError(null);
+    const { error: e } = await supabase.rpc('set_nickname', { p_nickname: name });
+    if (e) { setError(e.message.includes('nickname_taken') ? t.nameTaken : e.message.includes('bad_nickname') ? t.nameBad : t.errors.generic); return; }
+    setEditing(false); onChanged();
+  }
+  return (
+    <main className="ak-me">
+      <ProfileHead lang={lang} nickname={me.nickname ?? ''} rankKey={me.rank_key ?? ''} points={me.points ?? 0} streak={me.streak ?? 0}
+        total={me.approved_total ?? 0} days={shown.map((p) => p.action_day)} now={now}>
+        {editing ? (
+          <div className="ak-nameedit">
+            <input className="input" value={name} maxLength={24} aria-label={t.editName} onChange={(e) => setName(e.target.value)} />
+            <button className="btn-ink" onClick={saveName}>{t.save}</button>
+            <button className="link-btn" onClick={() => { setEditing(false); setError(null); }}>{t.cancel}</button>
+            <p className="small muted">{t.nameHint}</p>
+            {error && <p className="form-error" role="alert">{error}</p>}
+          </div>
+        ) : <button className="link-btn" onClick={() => { setName(me.nickname ?? ''); setEditing(true); }}>{t.editName}</button>}
+      </ProfileHead>
 
       <h2>{t.myPosts}</h2>
-      {(me.posts ?? []).length === 0 && <p className="muted">{t.empty}</p>}
-      <ul className="ak-mine">
-        {(me.posts ?? []).map((p) => <MyPostRow key={p.id} lang={lang} p={p} url={p.photo_path ? urls[p.photo_path] : undefined} onChanged={onChanged} />)}
-      </ul>
+      <PhotoGrid lang={lang} posts={shown} urls={urls} onOpen={onOpen} />
+
+      {other.length > 0 && (
+        <>
+          <h2>{t.waiting}</h2>
+          <ul className="ak-mine">
+            {other.map((p) => <MyPostRow key={p.id} lang={lang} p={p} url={p.photo_path ? urls[p.photo_path] : undefined} onChanged={onChanged} />)}
+          </ul>
+        </>
+      )}
 
       <h2>{t.settings}</h2>
       <div className="field">
@@ -394,6 +474,35 @@ function MePanel({ lang, me, urls, onChanged, onSignOut, onLang }: { lang: ALang
       </details>
       <button className="btn-outline" onClick={onSignOut}>{t.signOut}</button>
     </main>
+  );
+}
+
+// Another member's profile, opened by tapping their name in the feed.
+function ProfileSheet({ lang, nickname, now, urls, needPhoto, onOpen, onClose }: { lang: ALang; nickname: string; now: number; urls: Record<string, string>; needPhoto: (p: (string | null)[]) => void; onOpen: (id: string) => void; onClose: () => void }) {
+  const t = A[lang];
+  const [p, setP] = useState<Profile | null | undefined>(undefined);
+  useEffect(() => {
+    let live = true;
+    supabase.rpc('aksi_profile', { p_nickname: nickname }).then(({ data }) => {
+      if (!live) return;
+      const pr = (data as Profile | null) ?? null;
+      setP(pr);
+      if (pr) needPhoto(pr.posts.map((x) => x.photo_path));
+    });
+    return () => { live = false; };
+  }, [nickname, needPhoto]);
+  return (
+    <div className="ak-modal" role="dialog" aria-modal="true" aria-label={`${t.profile}: ${nickname}`}>
+      <div className="ak-sheet ak-me">
+        <button className="link-btn ak-close" onClick={onClose}>{t.close}</button>
+        {p === undefined ? <p className="ak-center muted" role="status">{t.loading}</p> : p === null ? <p className="ak-center muted">{t.notFound}</p> : (
+          <>
+            <ProfileHead lang={lang} nickname={p.nickname} rankKey={p.rank_key} points={p.points} streak={p.streak} total={p.approved_total} days={p.days} now={now} />
+            <PhotoGrid lang={lang} posts={p.posts} urls={urls} onOpen={onOpen} />
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 

@@ -96,3 +96,31 @@
 .ak-appeal .btn-ink { height: 44px; }
 
 .ak-ideas { margin: 0; padding: 12px 14px; border-radius: 12px; background: #E9E6DC; font-size: 14px; line-height: 1.5; }
+
+/* Profile */
+.ak-name { border: 0; background: none; padding: 0; font-weight: 700; font-size: 15px; text-align: left; cursor: pointer; min-height: 24px; }
+.ak-name:hover { text-decoration: underline; }
+.ak-phead { display: grid; grid-template-columns: 64px 1fr; gap: 14px; align-items: center; }
+.ak-phead h1 { font: 500 26px/1.15 var(--display); margin: 0 0 2px; overflow-wrap: anywhere; }
+.ak-phead p { margin: 0; }
+.ak-phead .link-btn { min-height: 32px; }
+.ak-avatar.big { width: 64px; height: 64px; font-size: 26px; }
+.ak-nameedit { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; margin-top: 8px; }
+.ak-nameedit .btn-ink { height: 44px; }
+.ak-nameedit .link-btn { min-height: 44px; }
+.ak-nameedit p { grid-column: 1 / -1; }
+.ak-prog { height: 6px; border-radius: 999px; background: #E3DFD3; overflow: hidden; }
+.ak-prog span { display: block; height: 100%; background: var(--report); border-radius: 999px; }
+.ak-progtext { margin: -6px 0 0; }
+.ak-week { list-style: none; margin: 16px 0 4px; padding: 0; display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.ak-week li { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.ak-dot { width: 32px; height: 32px; border-radius: 50%; border: 2px solid #3A4666; display: grid; place-items: center; color: #0F1830; }
+.ak-week .done .ak-dot { background: #FDBA74; border-color: #FDBA74; }
+.ak-week .today .ak-dot { border-color: #FFFFFF; }
+.ak-week .future .ak-dot { border-style: dashed; }
+.ak-wd { font-size: 12px; font-weight: 600; color: #C9D0E0; }
+.ak-week .today .ak-wd { color: #FFFFFF; }
+.ak-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.ak-grid button { display: block; width: 100%; padding: 0; border: 0; background: #E9E6DC; cursor: pointer; border-radius: 6px; overflow: hidden; }
+.ak-grid img, .ak-grid .ak-ph { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; }
+.ak-sheet.ak-me { padding-top: 12px; }
