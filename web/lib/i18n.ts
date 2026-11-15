@@ -3,7 +3,8 @@ export type Lang = 'en' | 'id';
 export const T = {
   en: {
     tagline: 'Air, fire and forest, live across Indonesia',
-    aqiLabel: 'US AQI · PM2.5',
+    aqiLabel: 'US AQI',
+    pmNote: (n: number | null | undefined, of: number) => (n != null ? `${n} of ${of} station${of === 1 ? '' : 's'}` : 'stations measuring PM2.5'),
     cats: { good: 'Good', moderate: 'Moderate', sensitive: 'Unhealthy for sensitive groups', unhealthy: 'Unhealthy', very_unhealthy: 'Very unhealthy', hazardous: 'Hazardous' },
     verdict: {
       good: 'Great air today. Enjoy the outdoors.',
@@ -138,7 +139,8 @@ export const T = {
   },
   id: {
     tagline: 'Udara, api, dan hutan — langsung dari seluruh Indonesia',
-    aqiLabel: 'AQI AS · PM2.5',
+    aqiLabel: 'AQI AS',
+    pmNote: (n: number | null | undefined, of: number) => (n != null ? `${n} dari ${of} stasiun` : 'stasiun pengukur PM2.5'),
     cats: { good: 'Baik', moderate: 'Sedang', sensitive: 'Tidak sehat bagi kelompok rentan', unhealthy: 'Tidak sehat', very_unhealthy: 'Sangat tidak sehat', hazardous: 'Berbahaya' },
     verdict: {
       good: 'Udara bagus hari ini. Nikmati waktu di luar.',

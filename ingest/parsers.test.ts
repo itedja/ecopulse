@@ -110,3 +110,18 @@ test('Keys never appear in logs', () => {
   assert.equal(redact('https://api.waqi.info/v2/map/bounds?latlng=1&token=SECRET&x=1'), 'https://api.waqi.info/v2/map/bounds?latlng=1&token=***&x=1');
   assert.equal(redact('https://firms.modaps.eosdis.nasa.gov/api/area/csv/SECRET/VIIRS/1,2,3,4/2'), 'https://firms.modaps.eosdis.nasa.gov/api/area/csv/***/VIIRS/1,2,3,4/2');
 });
+
+test('City snapshot: PM2.5 is the median of the stations that report it, not the mean', () => {
+  const now = Date.parse('2026-11-11T07:00:00Z');
+  const city = { id: 1, slug: 'jakarta', latitude: -6.2088, longitude: 106.8456 };
+  const at = '2026-11-11T06:30:00Z';
+  const snap = citySnapshot(city, [
+    { latitude: -6.21, longitude: 106.85, pm25_ugm3: 40, aqi_us: 112, measured_at: at },
+    { latitude: -6.22, longitude: 106.85, pm25_ugm3: 44, aqi_us: 122, measured_at: at },
+    { latitude: -6.23, longitude: 106.85, pm25_ugm3: 300, aqi_us: 350, measured_at: at },   // one faulty sensor
+    { latitude: -6.24, longitude: 106.85, pm25_ugm3: null, aqi_us: 120, measured_at: at },  // index only
+  ], now)!;
+  assert.equal(snap.pm25_ugm3, 44, 'the mean would be 128; one bad sensor must not move the city figure');
+  assert.equal(snap.aqi_us, 121);
+  assert.equal(snap.station_count, 4);
+});

@@ -12,7 +12,7 @@ export const supabase = createClient(url ?? 'http://localhost', key ?? 'missing'
 });
 
 export type City = { id: number; slug: string; name_en: string; name_id: string; latitude: number; longitude: number; province_id: number };
-export type CityAq = { city_id: number; slug: string; pm25_ugm3: number | null; aqi_us: number; category: string; station_count: number; computed_at: string; latitude: number; longitude: number; name_en: string };
+export type CityAq = { city_id: number; slug: string; pm25_ugm3: number | null; aqi_us: number; category: string; station_count: number; pm25_station_count?: number | null; computed_at: string; latitude: number; longitude: number; name_en: string };
 // Repeat-fire areas: cells of 0.02° (about 2.2 km) that burned in 2+ of the last 5 calendar years.
 export type RepeatPoint = { cx: number; cy: number; n: number };
 export type RepeatCell = { cx: number; cy: number; lon: number; lat: number; province_id: number | null; window_start: number; window_end: number;

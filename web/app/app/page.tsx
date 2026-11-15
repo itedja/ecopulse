@@ -325,7 +325,7 @@ export default function Home() {
                       <span className="badge" style={{ background: cat.color, color: cat.ink }}>{t.cats[cat.key]}</span>
                     </div>
                   </div>
-                  {reading.pm25_ugm3 != null && <div className="pm"><span className="label">PM2.5</span><b>{reading.pm25_ugm3}</b> <span className="unit">µg/m³</span></div>}
+                  {reading.pm25_ugm3 != null && <div className="pm"><span className="label">PM2.5</span><b>{reading.pm25_ugm3}</b> <span className="unit">µg/m³</span><span className="unit pm-note">{t.pmNote(reading.pm25_station_count, reading.station_count)}</span></div>}
                 </div>
                 <p className="verdict-text">
                   {t.verdict[cat.key as Category]}

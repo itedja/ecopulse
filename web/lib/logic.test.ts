@@ -138,3 +138,12 @@ test('Hero map: islands move right of the headline on wide screens only', () => 
   assert.deepEqual(heroPadding(360, 'dark'), { top: 12, right: 12, bottom: 28, left: 12 });
   assert.deepEqual(heroPadding(1200, 'light'), { top: 12, right: 12, bottom: 12, left: 12 });
 });
+
+test('City card: the index is not labelled as PM2.5-only, and PM2.5 says which stations it covers', () => {
+  assert.equal(T.id.aqiLabel, 'AQI AS');
+  assert.equal(T.en.aqiLabel, 'US AQI');
+  assert.equal(T.id.pmNote(3, 8), '3 dari 8 stasiun');
+  assert.equal(T.en.pmNote(1, 1), '1 of 1 station');
+  assert.equal(T.id.pmNote(null, 8), 'stasiun pengukur PM2.5');
+  assert.equal(T.en.pmNote(undefined, 8), 'stations measuring PM2.5');
+});

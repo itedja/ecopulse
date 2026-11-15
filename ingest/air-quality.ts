@@ -127,7 +127,9 @@ export function citySnapshot(city: City, readings: CityReading[], now = Date.now
   return {
     city_id: city.id,
     aqi_us: Math.round(median(aqis)!),     // median: one broken sensor can't skew the city
-    pm25_ugm3: pms.length ? Math.round((pms.reduce((a, b) => a + b, 0) / pms.length) * 10) / 10 : null,
+    // Median over the stations that report a PM2.5 concentration. Some stations publish only an index,
+    // so this can cover fewer stations than aqi_us does; the card says so.
+    pm25_ugm3: pms.length ? Math.round(median(pms)! * 10) / 10 : null,
     station_count: aqis.length,
   };
 }
