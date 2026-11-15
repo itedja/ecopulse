@@ -24,7 +24,7 @@ export type Live = {
   mostForest: (Place & { n: number }) | null;
   firePoints: [number, number][];
   cityPoints: { lon: number; lat: number; aqi: number }[];
-  news: Story[];             // the four newest stories
+  news: Story[];             // recent stories, newest first; the page picks four for the reader's language
 };
 
 type Rank = { name_en: string; name_id: string; fires_7d: number; forest_alerts_7d: number | null; fires_since: string | null };
@@ -43,7 +43,7 @@ export async function loadLive(): Promise<Live> {
     db.from('cities').select('slug, name_id'),
     db.from('reports_public').select('id', { count: 'exact', head: true }),
     db.from('hotspots_recent').select('latitude, longitude, province_id').not('province_id', 'is', null).limit(4000),
-    db.from('news_feed').select(STORY_COLS).order('published_at', { ascending: false }).limit(12),
+    db.from('news_feed').select(STORY_COLS).order('published_at', { ascending: false }).limit(40),
   ]);
   const r = (ranks.data ?? []) as Rank[];
   const a = ((aq.data ?? []) as Aq[]).filter((x) => x.aqi_us > 0);
@@ -65,11 +65,11 @@ export async function loadLive(): Promise<Live> {
     mostForest: mfo ? { en: mfo.name_en, id: mfo.name_id, n: mfo.forest_alerts_7d ?? 0 } : null,
     firePoints: ((fires.data ?? []) as { latitude: number; longitude: number }[]).map((f) => [f.longitude, f.latitude]),
     cityPoints: a.map((x) => ({ lon: x.longitude, lat: x.latitude, aqi: x.aqi_us })),
-    news: latestStories((news.data ?? []) as Story[]),
+    news: latestStories((news.data ?? []) as Story[], 40),
   };
 }
 
-const STORY_COLS = 'id, url, title, published_at, summary_en, summary_id, topics, source_name, image_url';
+const STORY_COLS = 'id, url, title, published_at, summary_en, summary_id, topics, source_name, image_url, language';
 
 // One story for its own page, plus the newest few to read next.
 export async function loadStory(id: number): Promise<{ story: Story | null; more: Story[] }> {

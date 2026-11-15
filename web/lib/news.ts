@@ -7,6 +7,7 @@ export type Story = {
   id: number; url: string; title: string; published_at: string;
   summary_en: string | null; summary_id: string | null;
   topics: string[]; source_name: string; image_url: string | null;
+  language?: string | null;   // language of the publisher's feed: 'id' or 'en'
 };
 
 // Newest first, one card per article (the same link or headline never appears twice).
@@ -21,6 +22,21 @@ export function latestStories<T extends { url: string; title: string; published_
     if (out.length === n) break;
   }
   return out;
+}
+
+// The stories for the carousel in the reader's language. Stories from publishers writing in that
+// language are chosen first; if there are fewer than `n` recent ones, the newest stories in the other
+// language fill the remaining places. "Recent" means within `freshHours` of the newest story overall,
+// so a publisher that has gone quiet cannot pin old news to the front page. Shown newest first.
+export function storiesFor<T extends { url: string; title: string; published_at: string; language?: string | null }>(
+  rows: T[], lang: Lang, n = 4, freshHours = 72,
+): T[] {
+  const all = latestStories(rows, rows.length);
+  if (all.length === 0) return [];
+  const cutoff = new Date(all[0].published_at).getTime() - freshHours * 3600_000;
+  const own = all.filter((r) => r.language === lang && new Date(r.published_at).getTime() >= cutoff).slice(0, n);
+  const rest = all.filter((r) => !own.includes(r)).slice(0, n - own.length);
+  return [...own, ...rest].sort((a, b) => b.published_at.localeCompare(a.published_at));
 }
 
 export function timeAgo(iso: string, nowMs: number, lang: Lang): string {

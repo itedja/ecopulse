@@ -9,6 +9,7 @@ import MiniMap from '@/components/MiniMap';
 import CountUp from '@/components/CountUp';
 import { worthShowing } from '@/lib/stats';
 import NewsCarousel from '@/components/NewsCarousel';
+import { storiesFor } from '@/lib/news';
 
 const REFRESH_MS = 2 * 60_000;
 const CONTACT = 'ecopulseindonesia@gmail.com';
@@ -139,7 +140,7 @@ export default function Landing() {
         </a>
       </section>
 
-      <NewsCarousel stories={live ? live.news : liveConfigured ? null : []} lang={lang} now={now} />
+      <NewsCarousel stories={live ? storiesFor(live.news, lang) : liveConfigured ? null : []} lang={lang} now={now} />
 
       <section className="lp-wrap">
         <h2 className="lp-eyebrow">{t.nowTitle}</h2>
