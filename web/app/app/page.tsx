@@ -8,6 +8,8 @@ import { CLEAN_AIR, JAKARTA_CASE, JAKARTA_AREA } from '@/lib/legal';
 import { category, advice, cleanestWindow, calibrateForecast, pm25ToAqi, isNextLocalDay, type Category } from '@/lib/aqi';
 import { upwindFires, distanceKm, compass } from '@/lib/smoke';
 import type { LayerKey } from '@/components/MapView';
+import { nextSnap, type Snap } from '@/lib/sheet';
+import { nearestCity } from '@/lib/nearest';
 import Rankings, { type RankingRow } from '@/components/Rankings';
 import ForestAlertCard from '@/components/ForestAlertCard';
 import RepeatFireCard from '@/components/RepeatFireCard';
@@ -112,7 +114,13 @@ export default function Home() {
   const [slug, setSlug] = useState('jakarta');
   const [tab, setTab] = useState<Tab>('map');
   const [sharing, setSharing] = useState(false);
-  const [layers, setLayers] = useState<Record<LayerKey, boolean>>({ air: true, fire: true, repeat: false, forest: true, emit: false, reports: true, wind: true, alerts: true });
+  // Three layers are on to begin with; the rest are one tap away under the Layers button.
+  const [layers, setLayers] = useState<Record<LayerKey, boolean>>({ air: true, fire: true, repeat: false, forest: false, emit: false, reports: false, wind: false, alerts: true });
+  const [layersOpen, setLayersOpen] = useState(false);
+  const [snap, setSnap] = useState<Snap>('peek');          // phone bottom sheet height
+  const dragY = useRef<number | null>(null);
+  const [locState, setLocState] = useState<'idle' | 'busy' | 'fail'>('idle');
+  const [nearMe, setNearMe] = useState<{ slug: string; km: number } | null>(null);
   const [forestId, setForestId] = useState<number | null>(null);
   // Repeat-fire layer: the point list is loaded only when the layer is first switched on.
   const [repeatPts, setRepeatPts] = useState<RepeatPoint[]>([]);
@@ -148,6 +156,8 @@ export default function Home() {
   };
   const closeEmitter = () => { setEmitSel(null); setEmitRow(null); };
   const [reportId, setReportId] = useState<string | null>(null);
+  // Tapping something on the map lifts the phone sheet so its card is readable.
+  useEffect(() => { if (forestId != null || repeatSel || emitSel != null || reportId) setSnap((cur) => (cur === 'peek' ? 'half' : cur)); }, [forestId, repeatSel, emitSel, reportId]);
   const auth = useAuth();
   const [installed, setInstalled] = useState(false);   // home-screen app: no way back to the website
   useEffect(() => { setInstalled(isInstalledApp()); }, []);
@@ -219,7 +229,19 @@ export default function Home() {
   }, [emitRow, data.aq, data.cities, lang]);
   const openReport = (id: string) => { setReportId(id); setForestId(null); closeRepeat(); closeEmitter(); setTab('map'); };
   const afterChange = () => { refresh(); auth.reloadProfile(); };
-  const chooseCity = (s: string) => { setSlug(s); store.set('ep.city', s); setTab('map'); };
+  const chooseCity = (s: string) => { setSlug(s); store.set('ep.city', s); setTab('map'); setNearMe(null); };
+  // Location is read once, used here to find the nearest monitored city, and then dropped.
+  const locate = () => {
+    if (!('geolocation' in navigator)) { setLocState('fail'); return; }
+    setLocState('busy');
+    navigator.geolocation.getCurrentPosition((pos) => {
+      const hit = nearestCity(data.cities, pos.coords.latitude, pos.coords.longitude);
+      if (!hit) { setLocState('fail'); return; }
+      chooseCity(hit.city.slug);
+      setNearMe({ slug: hit.city.slug, km: hit.km });
+      setLocState('idle');
+    }, () => setLocState('fail'), { maximumAge: 600_000, timeout: 10_000 });
+  };
   const chooseLang = (l: Lang) => { setLang(l); store.set('ep.lang', l); };
   useEffect(() => { document.documentElement.lang = lang; }, [lang]);
   const name = (c: City) => (lang === 'en' ? c.name_en : c.name_id);
@@ -240,7 +262,7 @@ export default function Home() {
   }
 
   return (
-    <div className="app" data-tab={tab}>
+    <div className="app" data-tab={tab} data-sheet={snap}>
       <header className="topbar">
         {installed ? (
           <div className="brand">
@@ -264,6 +286,9 @@ export default function Home() {
             {data.cities.map((c) => <option key={c.slug} value={c.slug}>{name(c)}</option>)}
           </select>
         </label>
+        <button className="icon-btn" onClick={locate} disabled={locState === 'busy'} aria-label={locState === 'busy' ? t.locating : t.locate} title={t.locate}>
+          <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3" /><path d="M12 2v4M12 18v4M2 12h4M18 12h4" /></svg>
+        </button>
         <div className="lang" role="group" aria-label="Language">
           <button aria-pressed={lang === 'en'} onClick={() => chooseLang('en')}>EN</button>
           <button aria-pressed={lang === 'id'} onClick={() => chooseLang('id')}>ID</button>
@@ -277,16 +302,31 @@ export default function Home() {
             forests={data.forests} selectedForestId={forestId} onSelectForest={(id) => { setForestId(id); setReportId(null); closeRepeat(); closeEmitter(); setTab('map'); }}
             reports={data.reports} selectedReportId={reportId} onSelectReport={openReport}
             layers={layers} selected={city} onSelectCity={chooseCity} lang={lang} />
-          <div className="chips" role="group" aria-label="Map layers">
-            {(Object.keys(layers) as LayerKey[]).map((k) => (
-              <button key={k} className="chip" aria-pressed={layers[k]} onClick={() => setLayers({ ...layers, [k]: !layers[k] })}>
-                <span className={`chip-dot dot-${k}`} aria-hidden="true" />{t.layers[k]}
-              </button>
-            ))}
-          </div>
+          <button className="layers-btn" aria-expanded={layersOpen} onClick={() => setLayersOpen((o) => !o)}>
+            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"><path d="m12 3 9 5-9 5-9-5 9-5Z" /><path d="m3 13 9 5 9-5" /></svg>
+            {t.layersBtn(Object.values(layers).filter(Boolean).length)}
+          </button>
+          {layersOpen && (
+            <div className="layers-panel" role="group" aria-label={t.layersTitle}>
+              <div className="layers-head"><b>{t.layersTitle}</b><button className="link-btn" onClick={() => setLayersOpen(false)}>{t.done}</button></div>
+              {(Object.keys(layers) as LayerKey[]).map((k) => (
+                <label key={k} className="layer-row">
+                  <input type="checkbox" checked={layers[k]} onChange={() => setLayers((l) => ({ ...l, [k]: !l[k] }))} />
+                  <span className={`chip-dot dot-${k}`} aria-hidden="true" />
+                  <span className="layer-text"><b>{t.layers[k]}</b><small>{t.layerHint[k]}</small></span>
+                </label>
+              ))}
+            </div>
+          )}
         </section>
 
         <aside className="panel">
+          <button className="sheet-handle" aria-label={t.sheetHandle}
+            onPointerDown={(e) => { dragY.current = e.clientY; e.currentTarget.setPointerCapture(e.pointerId); }}
+            onPointerUp={(e) => { if (dragY.current != null) setSnap((cur) => nextSnap(cur, e.clientY - dragY.current!)); dragY.current = null; }}
+            onPointerCancel={() => { dragY.current = null; }}><span aria-hidden="true" /></button>
+          {locState === 'fail' && <p className="near-note" role="status">{t.locateFail}</p>}
+          {nearMe && city && nearMe.slug === city.slug && <p className="near-note" role="status">{t.nearestCity(name(city), nearMe.km)}</p>}
           <div className="seg panel-tabs" role="group" aria-label="Sections">
             <button aria-pressed={tab === 'map'} onClick={() => setTab('map')}>{t.tabs.map}</button>
             <button aria-pressed={tab === 'rank'} onClick={() => setTab('rank')}>{t.tabs.rank}</button>
@@ -401,10 +441,13 @@ export default function Home() {
             )}
           </section>
 
-          {loaded && city && (
-            <section className="card panel-map">
+          {loaded && city && provinceAlerts.length === 0 && (
+            <p className="mono small muted panel-map quiet-line">{t.alertsNone} {t.fires24(nearbyFires)} · BMKG · NASA FIRMS</p>
+          )}
+          {loaded && city && provinceAlerts.length > 0 && (
+            <section className="card panel-map alert-card">
               <h2 className="h2">{t.alerts}</h2>
-              {provinceAlerts.length === 0 ? <p className="muted">{t.alertsNone}</p> : (
+              {(
                 <ul className="list">
                   {provinceAlerts.slice(0, 4).map((a) => (
                     <li key={a.id} className="alert-row"><span className="dot-alerts chip-dot" aria-hidden="true" />

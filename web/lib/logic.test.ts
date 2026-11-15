@@ -5,6 +5,8 @@ import { upwindFires, bearing, compass } from './smoke.ts';
 import { cityTimeZone, hhmm, T } from './i18n.ts';
 import { worthShowing } from './stats.ts';
 import { heroPadding } from './heroMap.ts';
+import { nextSnap } from './sheet.ts';
+import { nearestCity } from './nearest.ts';
 
 test('AQI categories', () => {
   assert.equal(category(50)!.key, 'good');
@@ -146,4 +148,32 @@ test('City card: the index is not labelled as PM2.5-only, and PM2.5 says which s
   assert.equal(T.en.pmNote(1, 1), '1 of 1 station');
   assert.equal(T.id.pmNote(null, 8), 'stasiun pengukur PM2.5');
   assert.equal(T.en.pmNote(undefined, 8), 'stations measuring PM2.5');
+});
+
+test('Bottom sheet: a tap steps through the heights, a drag moves one step and stops at the ends', () => {
+  assert.equal(nextSnap('peek', 0), 'half');
+  assert.equal(nextSnap('half', 5), 'full');
+  assert.equal(nextSnap('full', -10), 'peek');
+  assert.equal(nextSnap('peek', -120), 'half', 'drag up');
+  assert.equal(nextSnap('half', -120), 'full');
+  assert.equal(nextSnap('full', -120), 'full', 'cannot go above full');
+  assert.equal(nextSnap('full', 200), 'half', 'drag down');
+  assert.equal(nextSnap('peek', 200), 'peek', 'cannot go below peek');
+});
+
+test('Use my location: picks the nearest monitored city and reports the distance', () => {
+  const cities = [{ slug: 'jakarta', latitude: -6.2088, longitude: 106.8456 }, { slug: 'bandung', latitude: -6.9175, longitude: 107.6191 },
+    { slug: 'pekanbaru', latitude: 0.5071, longitude: 101.4478 }];
+  const bogor = nearestCity(cities, -6.595, 106.816)!;
+  assert.equal(bogor.city.slug, 'jakarta');
+  assert.ok(bogor.km >= 40 && bogor.km <= 46, `Bogor to Jakarta is about 43 km, got ${bogor.km}`);
+  assert.equal(nearestCity(cities, 0.9, 101.0)!.city.slug, 'pekanbaru');
+  assert.equal(nearestCity([], 0, 0), null);
+});
+
+test('Every map layer has a one-line explanation in both languages', () => {
+  for (const lang of ['id', 'en'] as const) {
+    assert.deepEqual(Object.keys(T[lang].layerHint).sort(), Object.keys(T[lang].layers).sort());
+    for (const hint of Object.values(T[lang].layerHint)) assert.ok(hint.length > 3);
+  }
 });
