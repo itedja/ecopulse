@@ -3,12 +3,15 @@
 // The map library only loads once the map scrolls into view, to save data for phone visitors.
 import { useEffect, useRef, useState } from 'react';
 import { category } from '@/lib/aqi';
+import { heroPadding } from '@/lib/heroMap';
 
-type Props = { fires: [number, number][]; cities: { lon: number; lat: number; aqi: number }[]; label: string };
+type Props = { fires: [number, number][]; cities: { lon: number; lat: number; aqi: number }[]; label: string; tone?: 'light' | 'dark' };
 
-const STYLE = 'https://tiles.openfreemap.org/styles/positron';
+const STYLE = { light: 'https://tiles.openfreemap.org/styles/positron', dark: 'https://tiles.openfreemap.org/styles/fiord' };
+// Dark tone: land in nila on a night-indigo sea, with no labels or roads, so the data points carry the picture.
+const DARK = { land: '#22355F', sea: '#0F1830' };
 
-export default function MiniMap({ fires, cities, label }: Props) {
+export default function MiniMap({ fires, cities, label, tone = 'light' }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<import('maplibre-gl').Map | null>(null);
   const [visible, setVisible] = useState(false);
@@ -33,17 +36,24 @@ export default function MiniMap({ fires, cities, label }: Props) {
       await import('maplibre-gl/dist/maplibre-gl.css');
       if (cancelled || !box.current) return;
       const m = new ml.Map({
-        container: box.current, style: STYLE, interactive: false, attributionControl: { compact: true },
-        bounds: [[95, -11], [141, 6]], fitBoundsOptions: { padding: 8 },
+        container: box.current, style: STYLE[tone], interactive: false, attributionControl: { compact: true },
+        bounds: [[95, -11], [141, 6]], fitBoundsOptions: { padding: heroPadding(box.current.clientWidth, tone) },
       });
       map.current = m;
       m.on('load', () => {
+        if (tone === 'dark') {
+          for (const l of m.getStyle().layers ?? []) {
+            if (l.type === 'background') m.setPaintProperty(l.id, 'background-color', DARK.land);
+            else if (l.id === 'water') m.setPaintProperty(l.id, 'fill-color', DARK.sea);
+            else m.setLayoutProperty(l.id, 'visibility', 'none');
+          }
+        }
         m.addSource('fires', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
         m.addSource('cities', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
         m.addLayer({ id: 'fires', type: 'circle', source: 'fires',
-          paint: { 'circle-radius': 2.5, 'circle-color': '#C2410C', 'circle-opacity': 0.75 } });
+          paint: { 'circle-radius': 2.5, 'circle-color': tone === 'dark' ? '#F0894F' : '#C2410C', 'circle-opacity': tone === 'dark' ? 0.9 : 0.75 } });
         m.addLayer({ id: 'cities', type: 'circle', source: 'cities',
-          paint: { 'circle-radius': 6, 'circle-color': ['get', 'color'], 'circle-stroke-color': '#1B2A49', 'circle-stroke-width': 1.5 } });
+          paint: { 'circle-radius': 6, 'circle-color': ['get', 'color'], 'circle-stroke-color': tone === 'dark' ? '#F4F1EA' : '#1B2A49', 'circle-stroke-width': 1.5 } });
         draw();
       });
     })();

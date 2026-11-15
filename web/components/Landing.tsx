@@ -122,37 +122,29 @@ export default function Landing() {
       </header>
 
       <section className="lp-hero">
+        <div className="lp-hero-map">
+          <MiniMap fires={live?.firePoints ?? []} cities={live?.cityPoints ?? []} label={t.mapHint} tone="dark" />
+          <span className="lp-legend"><i className="lg-fire" />{t.legendFire}<i className="lg-air" />{t.legendAir}</span>
+        </div>
         <div className="lp-hero-text">
-          <span className="lp-live mono"><span className="lp-pulse" aria-hidden="true" />{t.live}{mins != null && ` · ${t.updated(mins)}`}</span>
+          <span className="lp-live"><span className="lp-pulse" aria-hidden="true" />{t.live}{mins != null && ` · ${t.updated(mins)}`}</span>
           <h1>{t.h1}</h1>
           <p className="lp-lede">{t.lede}</p>
           <div className="lp-ctas">
-            {dev.standalone ? <a className="lp-btn lp-btn-dark" href="/app">{t.ctaMap}</a> : <>
-              <a className="lp-btn lp-btn-dark" href="#get">{t.ctaApp}</a>
-              <a className="lp-btn lp-btn-line" href="/app">{t.ctaMap}</a>
-            </>}
+            <a className="lp-btn lp-btn-light" href="/app">{t.ctaMap}</a>
+            {!dev.standalone && <a className="lp-btn lp-btn-ghost" href="#get">{t.ctaApp}</a>}
           </div>
         </div>
-        <a className="lp-map-link" href="/app" aria-label={t.ctaMap}>
-          <MiniMap fires={live?.firePoints ?? []} cities={live?.cityPoints ?? []} label={t.mapHint} />
-          <span className="lp-map-hint">{t.mapHint}</span>
-          <span className="lp-legend mono"><i className="lg-fire" />{t.legendFire}<i className="lg-air" />{t.legendAir}</span>
-        </a>
+        <div className="lp-hero-stats" data-n={showReports ? 4 : 3}>
+          <div><b style={{ color: '#F0894F' }}><CountUp value={live ? live.fires7d ?? 0 : null} format={fmt} /></b><span>{live?.firesSince ? t.firesSince(new Date(live.firesSince).toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-GB', { day: 'numeric', month: 'short', timeZone: 'Asia/Jakarta' })) : t.fires}</span></div>
+          <div><b><CountUp value={live?.worstAir ? live.worstAir.aqi : null} format={String} /></b><span>{t.air(place(live?.worstAir))}{airCat && <> · <em style={{ color: airCat.key === 'good' ? '#7BD3A0' : airCat.key === 'moderate' ? '#F2CE5A' : '#FF9C8F' }}>{T[lang].cats[airCat.key]}</em></>}</span></div>
+          <div><b style={{ color: '#D2A679' }}><CountUp value={live ? live.forestAlerts ?? 0 : null} format={fmt} /></b><span>{t.forest}</span></div>
+          {showReports && <div><b style={{ color: '#5EC4B6' }}><CountUp value={live.reports} format={fmt} /></b><span>{t.reports}</span></div>}
+        </div>
+        <p className="lp-hero-src">{t.sources}</p>
       </section>
 
       <NewsCarousel stories={live ? storiesFor(live.news, lang) : liveConfigured ? null : []} lang={lang} now={now} />
-
-      <section className="lp-wrap">
-        <h2 className="lp-eyebrow">{t.nowTitle}</h2>
-        <div className="lp-stats" data-n={showReports ? 4 : 3}>
-          <div className="lp-stat"><b style={{ color: '#C2410C' }}><CountUp value={live ? live.fires7d ?? 0 : null} format={fmt} /></b><span>{live?.firesSince ? t.firesSince(new Date(live.firesSince).toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-GB', { day: 'numeric', month: 'short', timeZone: 'Asia/Jakarta' })) : t.fires}</span></div>
-          <div className="lp-stat"><b><CountUp value={live?.worstAir ? live.worstAir.aqi : null} format={String} /></b>
-            <span>{t.air(place(live?.worstAir))}{airCat && <> · <em style={{ color: airCat.key === 'good' ? '#1E7A45' : airCat.key === 'moderate' ? '#8A6A00' : '#B42318' }}>{T[lang].cats[airCat.key]}</em></>}</span></div>
-          <div className="lp-stat"><b style={{ color: '#8B5E34' }}><CountUp value={live ? live.forestAlerts ?? 0 : null} format={fmt} /></b><span>{t.forest}</span></div>
-          {showReports && <div className="lp-stat"><b style={{ color: '#0F766E' }}><CountUp value={live.reports} format={fmt} /></b><span>{t.reports}</span></div>}
-        </div>
-        <p className="lp-src mono">{t.sources}</p>
-      </section>
 
       <section className="lp-wrap">
         <div className="lp-worst">

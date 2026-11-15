@@ -24,23 +24,37 @@
 .lp-btn-line:hover { border-color: var(--ink); }
 .lp-btn-light { background: #FFFFFF; color: var(--ink) !important; width: 100%; }
 
-.lp-hero { background: var(--surface); border-bottom: 1px solid var(--line); padding: 32px 16px; display: flex; flex-direction: column; gap: 24px; }
-.lp-hero-text { display: flex; flex-direction: column; gap: 18px; }
-.lp-live { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--slate); }
-.lp-pulse { width: 8px; height: 8px; border-radius: 50%; background: #D93A2B; animation: lp-pulse 2s ease-in-out infinite; }
+.lp-btn-light { background: #F4F1EA; color: #0F1830 !important; }
+.lp-btn-light:hover { background: #FFFFFF; }
+.lp-btn-ghost { background: transparent; border-color: rgba(244,241,234,0.45); color: #F4F1EA !important; font-weight: 600; }
+.lp-btn-ghost:hover { border-color: #F4F1EA; }
+
+/* Hero: one dark card. The live map is the picture; the headline and today's numbers sit on it. */
+.lp-hero { position: relative; overflow: hidden; margin: 12px; border-radius: 22px; background: #0F1830; color: #F4F1EA; padding: 0 20px 20px; display: flex; flex-direction: column; gap: 22px; }
+.lp-hero-map { position: relative; order: 2; margin: 0 -20px; }
+.lp-minimap { height: 230px; background: #0F1830; }
+.lp-hero-text { order: 1; padding-top: 26px; display: flex; flex-direction: column; gap: 16px; position: relative; }
+.lp-live { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: #C9CEDB; }
+.lp-pulse { width: 8px; height: 8px; border-radius: 50%; background: #F0894F; animation: lp-pulse 2s ease-in-out infinite; }
 @keyframes lp-pulse { 50% { opacity: 0.35; } }
 @media (prefers-reduced-motion: reduce) { .lp-pulse { animation: none; } }
-.lp h1 { margin: 0; font-family: var(--display); font-size: 42px; line-height: 1.06; letter-spacing: -0.03em; font-weight: 300; text-wrap: balance; }
-.lp-lede { margin: 0; font-size: 16px; line-height: 1.55; color: var(--slate); max-width: 520px; }
+.lp h1 { margin: 0; font-family: var(--display); font-size: 40px; line-height: 1.06; letter-spacing: -0.03em; font-weight: 300; text-wrap: balance; }
+.lp-lede { margin: 0; font-size: 16px; line-height: 1.55; color: #C9CEDB; max-width: 460px; }
 .lp-ctas { display: flex; flex-direction: column; gap: 10px; }
-
-.lp-map-link { position: relative; display: block; border-radius: 16px; overflow: hidden; border: 1px solid var(--line); color: var(--ink); }
-.lp-minimap { height: 260px; background: #DCE3EA; }
-.lp-map-hint { position: absolute; left: 12px; top: 12px; background: #FFFFFF; border-radius: 14px; padding: 6px 10px; font: 600 12px var(--font); box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
-.lp-legend { position: absolute; left: 12px; top: 48px; display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.92); border-radius: 8px; padding: 4px 8px; font-size: 12px; }
+.lp-hero-stats { order: 3; position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.lp-hero-stats[data-n='4'] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.lp-hero-stats > div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.lp-hero-stats b { font-family: var(--display); font-size: 32px; font-weight: 300; line-height: 1; letter-spacing: -0.02em; }
+.lp-hero-stats b span { font: inherit; }
+.lp-hero-stats span { font-size: 12px; font-weight: 500; line-height: 1.35; color: #C9CEDB; }
+.lp-hero-stats em { font-style: normal; font-weight: 700; }
+.lp-hero-src { order: 4; position: relative; margin: 0; font-size: 12px; color: #A9B0C3; }
+.lp-legend { position: absolute; left: 20px; bottom: 8px; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: #C9CEDB; }
 .lp-legend i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-.lp-legend .lg-fire { background: #C2410C; }
-.lp-legend .lg-air { background: conic-gradient(#2E9E5B 0 33%, #E8B10A 0 66%, #D93A2B 0); margin-left: 6px; border: 1px solid var(--ink); }
+.lp-legend .lg-fire { background: #F0894F; }
+.lp-legend .lg-air { background: conic-gradient(#2E9E5B 0 33%, #E8B10A 0 66%, #D93A2B 0); margin-left: 6px; border: 1px solid #F4F1EA; }
+.lp-hero .maplibregl-ctrl-attrib { background: rgba(15,24,48,0.7); color: #C9CEDB; }
+.lp-hero .maplibregl-ctrl-attrib a { color: #C9CEDB; }
 
 .lp-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .lp-stats[data-n='3'] .lp-stat:last-child { grid-column: 1 / -1; }
@@ -158,13 +172,19 @@
   .lp-top .brand { margin-right: 0; }
   .lp-top .lang { margin-left: auto; }
   .lp-top-cta { display: inline-flex !important; min-height: 40px; padding: 0 16px; font-size: 14px; }
-  .lp-hero { flex-direction: row; align-items: center; gap: 48px; padding: 64px max(32px, calc((100vw - 1120px) / 2)); }
-  .lp-hero-text { flex: 1 1 0; }
-  .lp-map-link { flex: 1 1 0; }
-  .lp-minimap { height: 400px; }
-  .lp h1 { font-size: 56px; }
-  .lp-lede { font-size: 18px; }
+  .lp-hero { margin: 16px; border-radius: 24px; min-height: 620px; padding: 0 48px 36px; justify-content: flex-end; gap: 28px; }
+  .lp-hero-map { position: absolute; inset: 0; margin: 0; order: 0; }
+  .lp-hero-map::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #0F1830 0%, rgba(15,24,48,0.9) 30%, rgba(15,24,48,0) 56%); }
+  .lp-minimap { height: 100%; }
+  .lp-hero-text { max-width: 520px; padding-top: 56px; margin-bottom: auto; gap: 20px; }
+  .lp h1 { font-size: 62px; line-height: 1.04; }
+  .lp-lede { font-size: 17px; }
   .lp-ctas { flex-direction: row; }
+  .lp-hero-stats, .lp-hero-stats[data-n='4'] { grid-template-columns: repeat(auto-fit, minmax(160px, 220px)); gap: 0; border-top: 1px solid rgba(244,241,234,0.18); padding-top: 20px; }
+  .lp-hero-stats > div { padding-right: 24px; }
+  .lp-hero-stats b { font-size: 48px; }
+  .lp-hero-stats span { font-size: 13px; }
+  .lp-legend { left: auto; right: 48px; bottom: 44px; }
   .lp-wrap { padding: 48px 32px; }
   .lp-news-track { margin: 0; padding: 0; scroll-padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); overflow: visible; }
   .lp-news-card { max-width: none; }

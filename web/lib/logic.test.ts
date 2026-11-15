@@ -4,6 +4,7 @@ import { category, cleanestWindow, advice, isNextLocalDay } from './aqi.ts';
 import { upwindFires, bearing, compass } from './smoke.ts';
 import { cityTimeZone, hhmm, T } from './i18n.ts';
 import { worthShowing } from './stats.ts';
+import { heroPadding } from './heroMap.ts';
 
 test('AQI categories', () => {
   assert.equal(category(50)!.key, 'good');
@@ -128,4 +129,12 @@ test('Headline stats: zero and missing counts are hidden, real counts are shown'
   assert.equal(worthShowing(Number.NaN), false);
   assert.equal(worthShowing(1), true);
   assert.equal(worthShowing(5133), true);
+});
+
+test('Hero map: islands move right of the headline on wide screens only', () => {
+  const wide = heroPadding(1200, 'dark');
+  assert.equal(wide.left, 528);
+  assert.ok(1200 - wide.left - wide.right >= 600, 'the map keeps at least 600px of width');
+  assert.deepEqual(heroPadding(360, 'dark'), { top: 12, right: 12, bottom: 28, left: 12 });
+  assert.deepEqual(heroPadding(1200, 'light'), { top: 12, right: 12, bottom: 12, left: 12 });
 });
