@@ -9,3 +9,11 @@ export function nextSnap(current: Snap, dy: number): Snap {
   if (Math.abs(dy) < 24) return ORDER[(i + 1) % ORDER.length];
   return ORDER[Math.max(0, Math.min(ORDER.length - 1, i + (dy < 0 ? 1 : -1)))];
 }
+
+// How much of the map's bottom the sheet hides, in pixels, so the map can centre on the part still visible.
+// Matches the sheet heights in globals.css. At "full" the map is hidden anyway, so the "half" value is kept
+// and the map does not jump when the sheet comes back down.
+export function sheetInset(snap: Snap, mapHeight: number, phone: boolean): number {
+  if (!phone || mapHeight <= 0) return 0;
+  return snap === 'peek' ? Math.min(250, Math.round(mapHeight * 0.5)) : Math.round(mapHeight * 0.54);
+}

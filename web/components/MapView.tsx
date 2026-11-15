@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import maplibregl, { type GeoJSONSource, type Map as MLMap } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { category } from '@/lib/aqi';
+import { sheetInset, type Snap } from '@/lib/sheet';
 import { emitRadius, type EmitterPoint } from '@/lib/emitters';
 import { cellCentre, type CityAq, type Hotspot, type Wind, type Alert, type Quake, type City, type ForestAlert, type Report, type Station, type RepeatPoint } from '@/lib/supabase';
 
@@ -32,6 +33,7 @@ type Props = {
   selected: City | null;
   onSelectCity: (slug: string) => void;
   lang: 'en' | 'id';
+  sheet?: Snap;   // phone bottom sheet height, so the map can keep clear of it
 };
 
 const STYLE = 'https://tiles.openfreemap.org/styles/positron';
@@ -103,10 +105,11 @@ const LAYER_IDS: Record<LayerKey, string[]> = {
   alerts: ['alert-fill', 'alert-line', 'quake-ring'],
 };
 
-export default function MapView({ aq, stations, fires, repeat, selectedRepeat, onSelectRepeat, emitters, selectedEmitterId, onSelectEmitter, wind, alerts, quakes, forests, reports, selectedReportId, onSelectReport, onSelectForest, selectedForestId, layers, selected, onSelectCity, lang }: Props) {
+export default function MapView({ aq, stations, fires, repeat, selectedRepeat, onSelectRepeat, emitters, selectedEmitterId, onSelectEmitter, wind, alerts, quakes, forests, reports, selectedReportId, onSelectReport, onSelectForest, selectedForestId, layers, selected, onSelectCity, lang, sheet = 'peek' }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<MLMap | null>(null);
   const ready = useRef(false);
+  const pad = useRef({ top: 0, left: 0, right: 0, bottom: 0 });
   const selectRef = useRef(onSelectCity);
   selectRef.current = onSelectCity;
   const reportRef = useRef(onSelectReport);
@@ -373,12 +376,25 @@ export default function MapView({ aq, stations, fires, repeat, selectedRepeat, o
     if (ready.current) apply(); else m.once('ecopulse:ready', apply);
   }, [layers]);
 
+  // On phones the bottom sheet covers the lower part of the map. Tell the map, so a chosen place
+  // lands in the middle of the part you can still see. Declared before the fly-to effects on purpose.
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !box.current) return;
+    const phone = window.matchMedia('(max-width: 899px)').matches;
+    const bottom = sheetInset(sheet, box.current.clientHeight, phone);
+    if (pad.current.bottom === bottom) return;
+    pad.current = { top: 0, left: 0, right: 0, bottom };
+    if (ready.current) m.easeTo({ padding: pad.current, duration: 250 });
+    else m.setPadding(pad.current);
+  }, [sheet]);
+
   // Fly to a report picked from the list.
   useEffect(() => {
     const m = map.current;
     const r = selectedReportId ? reports.find((x) => x.id === selectedReportId) : null;
     if (!m || !r) return;
-    m.flyTo({ center: [r.lon_public, r.lat_public], zoom: Math.max(m.getZoom(), 10), duration: 1000 });
+    m.flyTo({ padding: pad.current, center: [r.lon_public, r.lat_public], zoom: Math.max(m.getZoom(), 10), duration: 1000 });
   }, [selectedReportId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fly to a repeat-fire area that was opened (from the map, the rankings or a shared link).
@@ -386,7 +402,7 @@ export default function MapView({ aq, stations, fires, repeat, selectedRepeat, o
     const m = map.current;
     if (!m || !selectedRepeat) return;
     const c = cellCentre(selectedRepeat.cx, selectedRepeat.cy);
-    const go = () => m.flyTo({ center: [c.lon, c.lat], zoom: Math.max(m.getZoom(), 10), duration: 1000 });
+    const go = () => m.flyTo({ padding: pad.current, center: [c.lon, c.lat], zoom: Math.max(m.getZoom(), 10), duration: 1000 });
     if (ready.current) go(); else m.once('ecopulse:ready', go);
   }, [selectedRepeat?.cx, selectedRepeat?.cy]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -395,7 +411,7 @@ export default function MapView({ aq, stations, fires, repeat, selectedRepeat, o
     const m = map.current;
     const x = selectedEmitterId != null ? emitters.find((e) => e.id === selectedEmitterId) : null;
     if (!m || !x) return;
-    const go = () => m.flyTo({ center: [x.lon, x.lat], zoom: Math.max(m.getZoom(), 9), duration: 1000 });
+    const go = () => m.flyTo({ padding: pad.current, center: [x.lon, x.lat], zoom: Math.max(m.getZoom(), 9), duration: 1000 });
     if (ready.current) go(); else m.once('ecopulse:ready', go);
   }, [selectedEmitterId, emitters.length > 0]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -403,7 +419,7 @@ export default function MapView({ aq, stations, fires, repeat, selectedRepeat, o
   useEffect(() => {
     const m = map.current;
     if (!m || !selected || repeatSelRef.current || emitSelRef.current != null) return;   // an opened repeat-fire area keeps the view
-    m.flyTo({ center: [selected.longitude, selected.latitude], zoom: 8, duration: 1200 });
+    m.flyTo({ padding: pad.current, center: [selected.longitude, selected.latitude], zoom: 8, duration: 1200 });
   }, [selected?.slug]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return <div ref={box} className="map" role="region" aria-label={lang === 'en' ? 'Map of Indonesia' : 'Peta Indonesia'} />;
