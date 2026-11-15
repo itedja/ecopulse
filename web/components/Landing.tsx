@@ -4,7 +4,6 @@ import { L, loadLive, liveConfigured, type Live, type Place } from '@/lib/landin
 import { T, type Lang } from '@/lib/i18n';
 import { category } from '@/lib/aqi';
 import { drawTodayCard, shareCanvas } from '@/lib/shareCard';
-import HelpGuide from '@/components/HelpGuide';
 import MiniMap from '@/components/MiniMap';
 import CountUp from '@/components/CountUp';
 import { worthShowing } from '@/lib/stats';
@@ -161,28 +160,6 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="lp-band">
-        <div className="lp-wrap">
-          <h2 className="lp-eyebrow">{t.featTitle}</h2>
-          <div className="lp-feats">
-            {t.feats.map(([h, p], i) => (
-              <div key={h} className="lp-feat"><span className={`lp-ico lp-ico-${i}`} aria-hidden="true" /><b>{h}</b><p>{p}</p></div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="lp-wrap">
-        <h2 className="lp-h2">{t.ranksTitle}</h2>
-        <p className="lp-sub">{t.ranksSub}</p>
-        <ol className="lp-ranks">
-          {t.ranks.map(([name, pts], i) => <li key={name}><span className="mono">{i + 1}</span><b>{name}</b><small>{t.pts(fmt(pts))}</small></li>)}
-        </ol>
-      </section>
-
-      <section className="lp-wrap lp-help">
-        <HelpGuide lang={lang} onReport={() => { location.href = '/app?tab=reports'; }} />
-      </section>
 
       {!dev.standalone && <section id="get" className="lp-wrap">
         <div className="lp-get">
