@@ -127,7 +127,7 @@ export default function AksiPage() {
 
           {view === 'feed' && (
             <main className="ak-feed">
-              {!loading && posts.length === 0 && <p className="ak-center muted">{t.empty}</p>}
+              {!loading && posts.length === 0 && <><p className="ak-center muted">{t.empty}</p><p className="ak-ideas">{t.ideas}</p></>}
               {posts.map((p) => (
                 <article key={p.id} className="ak-post">
                   <header>
@@ -273,6 +273,7 @@ function Compose({ lang, userId, onClose, onSent }: { lang: ALang; userId: strin
           <span className="label">{t.caption}</span>
           <textarea className="input" rows={2} maxLength={300} value={caption} placeholder={t.captionPh} onChange={(e) => setCaption(e.target.value)} />
         </label>
+        <p className="ak-ideas">{t.ideas}</p>
         <p className="small muted">{t.childReminder}</p>
         {error && <p className="form-error" role="alert">{error}</p>}
         <div className="form-actions">

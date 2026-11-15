@@ -94,3 +94,5 @@
 .ak-rowact .link-btn { min-height: 44px; }
 .ak-appeal { display: grid; gap: 8px; margin: 6px 0; }
 .ak-appeal .btn-ink { height: 44px; }
+
+.ak-ideas { margin: 0; padding: 12px 14px; border-radius: 12px; background: #E9E6DC; font-size: 14px; line-height: 1.5; }

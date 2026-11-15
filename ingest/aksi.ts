@@ -18,7 +18,8 @@ export function postPrompt(caption: string | null): string {
   return `You check photos for "Aksi", a members-only feed inside a free Indonesian environmental app.
 Adults post a photo of a small action they did for the environment: picking up litter, planting or
 watering, sorting waste, composting, carrying a reusable bottle or bag, cycling or walking instead of
-driving, fixing something instead of throwing it away, a clean-up result, and similar. Photos may be
+driving, switching off unused lights, fixing something instead of throwing it away, a clean-up result,
+and similar. Everyday, modest actions count; it does not have to involve litter. Photos may be
 funny, odd, casual or a selfie. You do NOT need proof that the action happened.
 
 APPROVE if the photo plausibly shows such an action, its result, or the person doing it.
