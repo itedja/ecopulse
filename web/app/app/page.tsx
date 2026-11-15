@@ -323,8 +323,9 @@ export default function Home() {
         <aside className="panel">
           <button className="sheet-handle" aria-label={t.sheetHandle}
             onPointerDown={(e) => { dragY.current = e.clientY; e.currentTarget.setPointerCapture(e.pointerId); }}
-            onPointerUp={(e) => { if (dragY.current != null) setSnap((cur) => nextSnap(cur, e.clientY - dragY.current!)); dragY.current = null; }}
-            onPointerCancel={() => { dragY.current = null; }}><span aria-hidden="true" /></button>
+            onPointerUp={(e) => { const start = dragY.current; dragY.current = null; if (start == null) return; const dy = e.clientY - start; setSnap((cur) => nextSnap(cur, dy)); }}
+            onPointerCancel={() => { dragY.current = null; }}
+            onClick={(e) => { if (e.detail === 0) setSnap((cur) => nextSnap(cur, 0)); }}><span aria-hidden="true" /></button>
           {locState === 'fail' && <p className="near-note" role="status">{t.locateFail}</p>}
           {nearMe && city && nearMe.slug === city.slug && <p className="near-note" role="status">{t.nearestCity(name(city), nearMe.km)}</p>}
           <div className="seg panel-tabs" role="group" aria-label="Sections">
