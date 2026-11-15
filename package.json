@@ -15,6 +15,7 @@
     "ingest:news": "tsx ingest/news.ts",
     "ingest:deforestation": "tsx ingest/deforestation.ts",
     "ingest:reports": "tsx ingest/reports.ts",
+    "ingest:aksi": "tsx ingest/aksi.ts",
     "ingest:fire-history": "tsx ingest/fire-history.ts",
     "ingest:emitters": "tsx ingest/emitters.ts"
   },

@@ -1,6 +1,7 @@
 'use client';
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { resumeReturn } from '@/lib/returnTo';
 import { supabase, supabaseConfigured, type City, type CityAq, type Hotspot, type Forecast, type Wind, type Alert, type Quake, type NewsItem, type ForestAlert, type HelpAction, type Report, type Leader, type Station, type RepeatPoint, type RepeatCell, type RepeatProvince, type RepeatMeta, parseRepeatPoints } from '@/lib/supabase';
 import { T, type Lang, cityTimeZone, hhmm } from '@/lib/i18n';
 import LegalNote from '@/components/LegalNote';
@@ -244,6 +245,7 @@ export default function Home() {
   };
   const chooseLang = (l: Lang) => { setLang(l); store.set('ep.lang', l); };
   useEffect(() => { document.documentElement.lang = lang; }, [lang]);
+  useEffect(() => { resumeReturn(); }, []);   // back to Aksi after Google sign-in, if that is where they started
   const name = (c: City) => (lang === 'en' ? c.name_en : c.name_id);
   const site = typeof window === 'undefined' ? 'ecopulse' : window.location.host;
 

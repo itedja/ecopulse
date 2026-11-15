@@ -1,5 +1,6 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
+import { resumeReturn } from '@/lib/returnTo';
 import { L, loadLive, liveConfigured, type Live, type Place } from '@/lib/landing';
 import { T, type Lang } from '@/lib/i18n';
 import { category } from '@/lib/aqi';
@@ -48,6 +49,7 @@ export default function Landing() {
     return () => { window.removeEventListener('beforeinstallprompt', onPrompt); window.removeEventListener('appinstalled', onInstalled); };
   }, []);
   useEffect(() => { document.documentElement.lang = lang; }, [lang]);
+  useEffect(() => { resumeReturn(); }, []);   // back to Aksi after Google sign-in, if that is where they started
   const chooseLang = (l: Lang) => { setLang(l); try { localStorage.setItem('ep.lang', l); } catch { /* private mode */ } };
 
   const refresh = useCallback(async () => {

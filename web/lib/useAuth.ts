@@ -56,10 +56,11 @@ export function useAuth() {
     return () => { clearInterval(id); document.removeEventListener('visibilitychange', onShow); };
   }, [ready, session]);
 
-  const signIn = useCallback(async () => {
+  const signIn = useCallback(async (returnTo?: unknown) => {
     if (isInstalledApp()) { setWaiting(true); await startHandoff(); return; }
     // Normal browser: come back to the same page (and tab) after Google.
-    await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + '/?tab=reports' } });
+    const back = typeof returnTo === 'string' && returnTo.startsWith('/') && !returnTo.startsWith('//') ? returnTo : '/?tab=reports';
+    await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + back } });
   }, []);
   const signOut = useCallback(async () => { await supabase.auth.signOut(); setProfile(null); }, []);
   const cancelWaiting = useCallback(() => { clearPending(); setWaiting(false); }, []);
