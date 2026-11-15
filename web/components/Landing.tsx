@@ -187,7 +187,7 @@ export default function Landing() {
       </section>}
 
       <footer className="lp-foot">
-        <p>{t.footer} · <a href="/privacy">{t.privacy}</a> · <a href={`mailto:${CONTACT}`}>{t.contact}</a></p>
+        <p>{t.footer} · <a href={lang === 'en' ? '/data#en' : '/data'}>{t.dataPage}</a> · <a href="/privacy">{t.privacy}</a> · <a href={`mailto:${CONTACT}`}>{t.contact}</a></p>
         <p>{t.disclaimer}</p>
         <p>Data: <a href="https://waqi.info" target="_blank" rel="noopener noreferrer">World Air Quality Index Project</a> &amp; originating EPAs · <a href="https://openaq.org" target="_blank" rel="noopener noreferrer">OpenAQ</a> · NASA FIRMS · Global Forest Watch · <a href="https://open-meteo.com" target="_blank" rel="noopener noreferrer">Open-Meteo</a> (CC BY 4.0) · BMKG. Map © OpenStreetMap contributors · OpenFreeMap.</p>
       </footer>

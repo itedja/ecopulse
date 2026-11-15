@@ -364,3 +364,16 @@ button { font: inherit; color: inherit; }
   .app[data-tab='map'] .map-pane .maplibregl-ctrl-bottom-right, .app[data-tab='map'] .map-pane .maplibregl-ctrl-bottom-left { bottom: 256px; }
   @media (prefers-reduced-motion: reduce) { .app[data-tab='map'] .panel { transition: none; } }
 }
+
+/* "How we check our data" page */
+.src { border-top: 1px solid var(--line, #DDD8CC); padding: 20px 0 6px; margin-top: 20px; }
+.src h3 { font-size: 18px; margin: 0 0 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.src-kind { font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: #EAE6DB; color: #1B2A49; white-space: nowrap; }
+.src-kind.k-model { background: #EDE4FB; color: #4C1D95; }
+.src-kind.k-satellite { background: #FBE6DA; color: #8A2E08; }
+.src-kind.k-measured { background: #DCEBF7; color: #124A7C; }
+.src-kind.k-community { background: #D9EEEC; color: #0B4F4A; }
+.src dl { margin: 0; display: grid; grid-template-columns: 150px 1fr; gap: 6px 16px; }
+.src dt { color: var(--muted, #5A6072); font-size: 13px; padding-top: 2px; }
+.src dd { margin: 0; }
+@media (max-width: 560px) { .src dl { grid-template-columns: 1fr; gap: 0; } .src dt { margin-top: 10px; } }

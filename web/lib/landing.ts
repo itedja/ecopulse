@@ -128,7 +128,7 @@ export const L = {
     bannerAndroid: 'Untuk memasang aplikasi, buka halaman ini di Chrome.',
     bannerBtn: 'Buka di Chrome',
     footer: 'EcoPulse Indonesia · gratis, nonkomersial, tanpa iklan',
-    privacy: 'Privasi', contact: 'Kontak',
+    privacy: 'Privasi', contact: 'Kontak', dataPage: 'Cara kami memeriksa data',
     disclaimer: 'Data otomatis dari sumber publik dan bisa terlambat atau keliru. Untuk keadaan darurat, hubungi 112.',
   },
   en: {
@@ -177,7 +177,7 @@ export const L = {
     bannerAndroid: 'To install the app, open this page in Chrome.',
     bannerBtn: 'Open in Chrome',
     footer: 'EcoPulse Indonesia · free, non-commercial, no ads',
-    privacy: 'Privacy', contact: 'Contact',
+    privacy: 'Privacy', contact: 'Contact', dataPage: 'How we check our data',
     disclaimer: 'Automatic data from public sources; it can be late or wrong. In an emergency, call 112.',
   },
 } satisfies Record<Lang, unknown>;
