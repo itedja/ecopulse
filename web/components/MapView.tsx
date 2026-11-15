@@ -137,6 +137,11 @@ export default function MapView({ aq, stations, fires, repeat, selectedRepeat, o
     m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
     map.current = m;
 
+    // Keep the drawing the same size as its box. Without this the map can paint only part of the box
+    // when the box changes size after the map was created (bottom sheet moving, phone rotating).
+    const ro = 'ResizeObserver' in window ? new ResizeObserver(() => m.resize()) : null;
+    ro?.observe(box.current);
+
     m.on('load', () => {
       m.addImage('ep-arrow', arrowImage(), { pixelRatio: 2 });
       m.addImage('sq', squareImage(false), { pixelRatio: 2 });
@@ -310,7 +315,7 @@ export default function MapView({ aq, stations, fires, repeat, selectedRepeat, o
       ready.current = true;
       m.fire('ecopulse:ready');
     });
-    return () => { m.remove(); map.current = null; ready.current = false; };
+    return () => { ro?.disconnect(); m.remove(); map.current = null; ready.current = false; };
   }, []);
 
   // Push data into the sources whenever it changes.
