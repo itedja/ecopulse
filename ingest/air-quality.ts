@@ -131,6 +131,7 @@ export function citySnapshot(city: City, readings: CityReading[], now = Date.now
     // so this can cover fewer stations than aqi_us does; the card says so.
     pm25_ugm3: pms.length ? Math.round(median(pms)! * 10) / 10 : null,
     station_count: aqis.length,
+    pm25_station_count: pms.length,   // how many of those stations the PM2.5 figure is based on
   };
 }
 

@@ -63,7 +63,7 @@ test('City snapshot: median AQI, only fresh and nearby stations', () => {
     { latitude: -6.20, longitude: 106.84, pm25_ugm3: 10, aqi_us: 50, measured_at: '2026-11-11T01:00:00Z' },   // stale
     { latitude: -7.25, longitude: 112.75, pm25_ugm3: 10, aqi_us: 50, measured_at: '2026-11-11T06:00:00Z' },   // Surabaya
   ], now);
-  assert.deepEqual(snap, { city_id: 1, aqi_us: 160, pm25_ugm3: 65, station_count: 3 });
+  assert.deepEqual(snap, { city_id: 1, aqi_us: 160, pm25_ugm3: 65, station_count: 3, pm25_station_count: 1 });
 });
 
 test('AQI matches the 2024 EPA breakpoints and the database function', () => {
@@ -124,4 +124,5 @@ test('City snapshot: PM2.5 is the median of the stations that report it, not the
   assert.equal(snap.pm25_ugm3, 44, 'the mean would be 128; one bad sensor must not move the city figure');
   assert.equal(snap.aqi_us, 121);
   assert.equal(snap.station_count, 4);
+  assert.equal(snap.pm25_station_count, 3, 'three of the four stations publish a concentration');
 });
